@@ -1,0 +1,55 @@
+#!/bin/bash
+set -e
+
+APP_NAME="{{ app_name }}"
+APP_DIR="{{ app_dir }}"
+GITHUB_REPO="{{ app_github_repo }}"
+RELEASES_DIR="$APP_DIR/releases"
+
+echo "Starting deploy of $APP_NAME"
+
+AUTH_HEADER=""
+{% if app_github_token != "" %}
+TOKEN=$(cat "$APP_DIR/.github-token")
+AUTH_HEADER="-H \"Authorization: Bearer $TOKEN\""
+{% endif %}
+
+RELEASE_INFO=$(curl -s $AUTH_HEADER \
+  https://api.github.com/repos/$GITHUB_REPO/releases/latest)
+
+VERSION=$(echo $RELEASE_INFO | grep -o '"tag_name": "[^"]*' | cut -d'"' -f4)
+DOWNLOAD_URL=$(echo $RELEASE_INFO | grep -o '"browser_download_url": "[^"]*' | cut -d'"' -f4)
+
+echo "Latest version: $VERSION"
+
+RELEASE_DIR="$RELEASES_DIR/$VERSION"
+if [ -d "$RELEASE_DIR" ]; then
+  echo "Version $VERSION already deployed, exiting"
+  exit 0
+fi
+
+mkdir -p "$RELEASE_DIR"
+echo "Downloading $DOWNLOAD_URL"
+curl -L $AUTH_HEADER "$DOWNLOAD_URL" -o "$RELEASE_DIR/$APP_NAME"
+chmod +x "$RELEASE_DIR/$APP_NAME"
+
+PREVIOUS=$(readlink "$APP_DIR/current" || echo "")
+
+ln -sfn "$RELEASE_DIR" "$APP_DIR/current"
+echo "Symlink updated to $VERSION"
+
+systemctl restart "$APP_NAME"
+sleep 3
+
+if ! systemctl is-active --quiet "$APP_NAME"; then
+  echo "Service failed to start, rolling back to previous version"
+  if [ -n "$PREVIOUS" ]; then
+    ln -sfn "$PREVIOUS" "$APP_DIR/current"
+    systemctl restart "$APP_NAME"
+  fi
+  exit 1
+fi
+
+echo "Deploy of $VERSION successful"
+
+ls -dt "$RELEASES_DIR"/*/ | tail -n +4 | xargs rm -rf 2>/dev/null || true

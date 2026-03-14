@@ -1,0 +1,7 @@
+app_name: app
+app_user: deploy
+app_dir: /opt/{{ app_name }}
+app_github_repo: ""
+app_github_token: ""
+app_env_vars: {}
+app_deploy_key: ""

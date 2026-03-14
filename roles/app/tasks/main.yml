@@ -1,0 +1,66 @@
+- name: Create app group
+  group:
+    name: "{{ app_user }}"
+    state: present
+
+- name: Create app user
+  user:
+    name: "{{ app_user }}"
+    group: "{{ app_user }}"
+    shell: /bin/bash
+    home: "/home/{{ app_user }}"
+    create_home: yes
+    state: present
+
+- name: Create app directory
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+
+- name: Create releases directory
+  file:
+    path: "{{ app_dir }}/releases"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+
+- name: Place deploy script
+  template:
+    src: deploy.sh.j2
+    dest: "{{ app_dir }}/deploy.sh"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+
+- name: Place systemd service file
+  template:
+    src: app.service.j2
+    dest: "/etc/systemd/system/{{ app_name }}.service"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable and start service
+  systemd:
+    name: "{{ app_name }}"
+    enabled: yes
+    daemon_reload: yes
+
+- name: Place .env file
+  template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0600'
+
+- name: Add deploy SSH key
+  authorized_key:
+    user: "{{ app_user }}"
+    key: "{{ app_deploy_key }}"
+    state: present
+  when: app_deploy_key != ""
