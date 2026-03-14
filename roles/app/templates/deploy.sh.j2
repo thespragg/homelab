@@ -20,6 +20,11 @@ RELEASE_INFO=$(curl -s $AUTH_HEADER \
 VERSION=$(echo $RELEASE_INFO | grep -o '"tag_name": "[^"]*' | cut -d'"' -f4)
 DOWNLOAD_URL=$(echo $RELEASE_INFO | grep -o '"browser_download_url": "[^"]*' | cut -d'"' -f4)
 
+if [ -z "$VERSION" ]; then
+  echo "No releases found for $GITHUB_REPO"
+  exit 1
+fi
+
 echo "Latest version: $VERSION"
 
 RELEASE_DIR="$RELEASES_DIR/$VERSION"

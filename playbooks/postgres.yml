@@ -1,0 +1,11 @@
+- name: Provision postgres
+  hosts: postgres
+  become: true
+  roles:
+    - common
+    - role: postgres
+      vars:
+        postgres_databases:
+          - name: osrs_clan_bot
+            user: osrs_clan_bot_user
+            password: "{{ vault_osrs_clan_bot_db_password }}"

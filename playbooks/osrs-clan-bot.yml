@@ -9,3 +9,4 @@
         app_deploy_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGqdHeEKGd5ruGZsxKFix70bWKFvUAdXa5yfoBtroeR7 osrs-clan-bot-deploy"
         app_env_vars:
           DISCORD_TOKEN: "{{ vault_discord_token }}"
+          ConnectionStrings__Default: "Host={{ postgres_host }};Database=osrs_clan_bot;Username=osrs_clan_bot_user;Password={{ vault_osrs_clan_bot_db_password }}"
