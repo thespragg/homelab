@@ -1,0 +1,102 @@
+- name: Install docker dependencies
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+    update_cache: yes
+
+- name: Create docker apt keyrings directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Download docker apt key
+  get_url:
+    url: https://download.docker.com/linux/debian/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+
+- name: Add docker apt repository
+  deb822_repository:
+    name: docker
+    types: deb
+    uris: https://download.docker.com/linux/debian
+    suites: "{{ ansible_distribution_release }}"
+    components: stable
+    signed_by: /etc/apt/keyrings/docker.asc
+    state: present
+    enabled: yes
+
+- name: Install docker
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+
+- name: Ensure docker is started and enabled
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Create monitoring directory
+  file:
+    path: "{{ monitoring_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create loki data directory
+  file:
+    path: "{{ monitoring_dir }}/loki-data"
+    state: directory
+    mode: '0777'
+
+- name: Place loki config
+  template:
+    src: loki-config.yml.j2
+    dest: "{{ monitoring_dir }}/loki-config.yml"
+    mode: '0644'
+
+- name: Place grafana datasource
+  template:
+    src: grafana-datasource.yml.j2
+    dest: "{{ monitoring_dir }}/grafana-datasource.yml"
+    mode: '0644'
+
+- name: Place docker compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ monitoring_dir }}/docker-compose.yml"
+    mode: '0644'
+  no_log: true
+
+- name: Allow Grafana through firewall
+  ufw:
+    rule: allow
+    port: "{{ monitoring_grafana_port }}"
+    proto: tcp
+
+- name: Allow Loki HTTP through firewall
+  ufw:
+    rule: allow
+    port: "{{ monitoring_loki_port }}"
+    proto: tcp
+
+- name: Allow Loki OTLP through firewall
+  ufw:
+    rule: allow
+    port: "{{ monitoring_loki_otlp_port }}"
+    proto: tcp
+
+- name: Start monitoring stack
+  shell: "docker compose -f {{ monitoring_dir }}/docker-compose.yml up -d --pull always"
+  args:
+    chdir: "{{ monitoring_dir }}"

@@ -3,22 +3,5 @@
   become: true
   roles:
     - common
-    - role: postgres
-      vars:
-        postgres_databases:
-          - name: osrs_clan_bot
-            user: osrs_clan_bot_user
-            password: "{{ vault_osrs_clan_bot_db_password }}"
-    - role: restic
-      vars:
-        restic_jobs:
-          - name: osrs-clan-bot
-            type: postgres
-            database: osrs_clan_bot
-            db_user: osrs_clan_bot_user
-            db_password: "{{ vault_osrs_clan_bot_db_password }}"
-            schedule: daily
-            retention:
-              daily: 7
-              weekly: 4
-              monthly: 6
+    - postgres
+    - restic

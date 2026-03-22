@@ -1,0 +1,8 @@
+monitoring_dir: /opt/monitoring
+monitoring_grafana_version: "11.4.0"
+monitoring_loki_version: "3.3.2"
+monitoring_grafana_port: 3000
+monitoring_loki_port: 3100
+monitoring_loki_otlp_port: 4317
+monitoring_loki_retention_days: 7
+monitoring_grafana_admin_password: "{{ vault_grafana_admin_password }}"

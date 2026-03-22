@@ -1,0 +1,6 @@
+- name: Provision monitoring
+  hosts: grafana
+  become: true
+  roles:
+    - common
+    - monitoring

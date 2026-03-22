@@ -1,0 +1,28 @@
+services:
+  loki:
+    image: grafana/loki:{{ monitoring_loki_version }}
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "{{ monitoring_loki_port }}:{{ monitoring_loki_port }}"
+      - "{{ monitoring_loki_otlp_port }}:4317"
+    volumes:
+      - {{ monitoring_dir }}/loki-config.yml:/etc/loki/local-config.yaml
+      - {{ monitoring_dir }}/loki-data:/loki/data
+    command: -config.file=/etc/loki/local-config.yaml
+
+  grafana:
+    image: grafana/grafana:{{ monitoring_grafana_version }}
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "{{ monitoring_grafana_port }}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD={{ monitoring_grafana_admin_password }}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - {{ monitoring_dir }}/grafana-datasource.yml:/etc/grafana/provisioning/datasources/loki.yml
+
+volumes:
+  grafana-data:
