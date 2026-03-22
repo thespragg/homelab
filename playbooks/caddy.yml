@@ -1,0 +1,6 @@
+- name: Configure Caddy reverse proxy
+  hosts: caddy
+  become: true
+  roles:
+    - common
+    - caddy

@@ -1,0 +1,20 @@
+{
+	email {{ caddy_acme_email }}
+}
+
+*.{{ caddy_domain }} {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+
+{% for proxy in caddy_proxies %}
+	@{{ proxy.name }} host {{ proxy.name }}.{{ caddy_domain }}
+	handle @{{ proxy.name }} {
+		reverse_proxy {{ proxy.backend }}
+	}
+
+{% endfor %}
+	handle {
+		respond 404
+	}
+}

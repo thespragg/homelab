@@ -1,0 +1,81 @@
+- name: Create caddy group
+  group:
+    name: "{{ caddy_group }}"
+    system: yes
+    state: present
+
+- name: Create caddy user
+  user:
+    name: "{{ caddy_user }}"
+    group: "{{ caddy_group }}"
+    system: yes
+    shell: /usr/sbin/nologin
+    home: "{{ caddy_data_dir }}"
+    create_home: no
+    state: present
+
+- name: Create caddy directories
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ caddy_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ caddy_config_dir }}", owner: root, mode: "0755" }
+    - { path: "{{ caddy_data_dir }}", owner: "{{ caddy_user }}", mode: "0750" }
+    - { path: "{{ caddy_log_dir }}", owner: "{{ caddy_user }}", mode: "0750" }
+
+- name: Download caddy binary with Cloudflare DNS plugin
+  get_url:
+    url: "https://caddyserver.com/api/download?os=linux&arch=amd64&p=github.com/caddy-dns/cloudflare"
+    dest: "{{ caddy_install_path }}"
+    mode: "0755"
+    force: yes
+
+- name: Place Caddyfile
+  template:
+    src: Caddyfile.j2
+    dest: "{{ caddy_config_dir }}/Caddyfile"
+    owner: root
+    group: "{{ caddy_group }}"
+    mode: "0640"
+  notify: Reload caddy
+
+- name: Place caddy environment file
+  template:
+    src: caddy.env.j2
+    dest: "{{ caddy_config_dir }}/caddy.env"
+    owner: root
+    group: "{{ caddy_group }}"
+    mode: "0640"
+  notify: Restart caddy
+  no_log: true
+
+- name: Place caddy systemd service
+  template:
+    src: caddy.service.j2
+    dest: /etc/systemd/system/caddy.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart caddy
+
+- name: Allow HTTP through firewall
+  ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+
+- name: Allow HTTPS through firewall
+  ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+
+- name: Enable and start caddy
+  systemd:
+    name: caddy
+    enabled: yes
+    daemon_reload: yes
+    state: started
