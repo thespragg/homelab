@@ -43,14 +43,14 @@ PREVIOUS=$(readlink "$APP_DIR/current" || echo "")
 ln -sfn "$RELEASE_DIR" "$APP_DIR/current"
 echo "Symlink updated to $VERSION"
 
-systemctl restart "$APP_NAME"
+sudo systemctl restart "$APP_NAME"
 sleep 3
 
 if ! systemctl is-active --quiet "$APP_NAME"; then
   echo "Service failed to start, rolling back to previous version"
   if [ -n "$PREVIOUS" ]; then
     ln -sfn "$PREVIOUS" "$APP_DIR/current"
-    systemctl restart "$APP_NAME"
+    sudo systemctl restart "$APP_NAME"
   fi
   exit 1
 fi

@@ -1,0 +1,11 @@
+github_runner_version: "2.322.0"
+github_runner_user: github-runner
+github_runner_group: github-runner
+github_runner_dir: /opt/github-runner
+github_runner_repo: ""
+github_runner_token: ""
+github_runner_name: "{{ inventory_hostname }}"
+github_runner_labels: "self-hosted,linux"
+github_runner_service_name: ""
+github_runner_app_user: "{{ app_user | default('deploy') }}"
+github_runner_app_dir: "{{ app_dir | default('') }}"

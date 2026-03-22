@@ -1,0 +1,97 @@
+- name: Create github-runner group
+  group:
+    name: "{{ github_runner_group }}"
+    system: yes
+    state: present
+
+- name: Create github-runner user
+  user:
+    name: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    groups: "{{ github_runner_app_user }}"
+    system: yes
+    shell: /bin/bash
+    home: "{{ github_runner_dir }}"
+    create_home: no
+    state: present
+
+- name: Create runner directory
+  file:
+    path: "{{ github_runner_dir }}"
+    state: directory
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    mode: '0755'
+
+- name: Download runner tarball
+  get_url:
+    url: "https://github.com/actions/runner/releases/download/v{{ github_runner_version }}/actions-runner-linux-x64-{{ github_runner_version }}.tar.gz"
+    dest: "/tmp/actions-runner-{{ github_runner_version }}.tar.gz"
+    mode: '0644'
+
+- name: Extract runner
+  unarchive:
+    src: "/tmp/actions-runner-{{ github_runner_version }}.tar.gz"
+    dest: "{{ github_runner_dir }}"
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    remote_src: yes
+    creates: "{{ github_runner_dir }}/run.sh"
+
+- name: Install runner dependencies
+  command: "{{ github_runner_dir }}/bin/installdependencies.sh"
+  args:
+    chdir: "{{ github_runner_dir }}"
+
+- name: Check if runner is already configured
+  stat:
+    path: "{{ github_runner_dir }}/.runner"
+  register: runner_configured
+
+- name: Configure runner
+  shell: >
+    su -s /bin/bash {{ github_runner_user }} -c
+    "cd {{ github_runner_dir }} &&
+    ./config.sh
+    --url https://github.com/{{ github_runner_repo }}
+    --token {{ github_runner_token }}
+    --name {{ github_runner_name }}
+    --labels {{ github_runner_labels }}
+    --unattended"
+  when:
+    - not runner_configured.stat.exists
+    - github_runner_token != ""
+  no_log: true
+
+- name: Fix runner directory ownership
+  file:
+    path: "{{ github_runner_dir }}"
+    state: directory
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    recurse: yes
+
+- name: Add sudoers entry for service restart
+  template:
+    src: sudoers.j2
+    dest: /etc/sudoers.d/github-runner
+    owner: root
+    group: root
+    mode: '0440'
+    validate: 'visudo -cf %s'
+  when: github_runner_service_name != ""
+
+- name: Place runner systemd service
+  template:
+    src: github-runner.service.j2
+    dest: /etc/systemd/system/github-runner.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable and start runner service
+  systemd:
+    name: github-runner
+    enabled: yes
+    daemon_reload: yes
+    state: started
