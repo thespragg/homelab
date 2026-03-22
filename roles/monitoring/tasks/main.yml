@@ -57,7 +57,9 @@
   file:
     path: "{{ monitoring_dir }}/loki-data"
     state: directory
-    mode: '0777'
+    owner: "10001"
+    group: "10001"
+    mode: '0755'
 
 - name: Place loki config
   template:
