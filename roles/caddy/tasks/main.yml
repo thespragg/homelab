@@ -31,7 +31,7 @@
     url: "https://caddyserver.com/api/download?os=linux&arch=amd64&p=github.com/caddy-dns/cloudflare"
     dest: "{{ caddy_install_path }}"
     mode: "0755"
-    force: yes
+    force: no
 
 - name: Place Caddyfile
   template:
