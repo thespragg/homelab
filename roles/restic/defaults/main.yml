@@ -1,0 +1,8 @@
+restic_version: "0.18.1"
+restic_install_path: /usr/local/bin/restic
+restic_b2_bucket: homelab-backups
+restic_b2_key_id: "{{ vault_b2_key_id }}"
+restic_b2_application_key: "{{ vault_b2_application_key }}"
+restic_password: "{{ vault_restic_password }}"
+
+restic_jobs: []

@@ -1,0 +1,61 @@
+- name: Install restic dependencies
+  apt:
+    name:
+      - bzip2
+      - postgresql-client
+    state: present
+
+- name: Download restic binary
+  get_url:
+    url: "https://github.com/restic/restic/releases/download/v{{ restic_version }}/restic_{{ restic_version }}_linux_amd64.bz2"
+    dest: "/tmp/restic.bz2"
+    mode: '0644'
+
+- name: Decompress restic binary
+  shell: "bunzip2 -f /tmp/restic.bz2 && mv /tmp/restic {{ restic_install_path }}"
+  args:
+    creates: "{{ restic_install_path }}"
+
+- name: Make restic executable
+  file:
+    path: "{{ restic_install_path }}"
+    mode: '0755'
+
+- name: Create restic config directory
+  file:
+    path: /etc/restic
+    state: directory
+    mode: '0700'
+
+- name: Place backup scripts
+  template:
+    src: backup.sh.j2
+    dest: "/etc/restic/backup-{{ item.name }}.sh"
+    mode: '0700'
+  loop: "{{ restic_jobs }}"
+  no_log: true
+
+- name: Place systemd service files
+  template:
+    src: backup.service.j2
+    dest: "/etc/systemd/system/restic-backup-{{ item.name }}.service"
+    mode: '0644'
+  loop: "{{ restic_jobs }}"
+  no_log: true
+
+- name: Place systemd timer files
+  template:
+    src: backup.timer.j2
+    dest: "/etc/systemd/system/restic-backup-{{ item.name }}.timer"
+    mode: '0644'
+  loop: "{{ restic_jobs }}"
+  no_log: true
+
+- name: Enable and start backup timers
+  systemd:
+    name: "restic-backup-{{ item.name }}.timer"
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  loop: "{{ restic_jobs }}"
+  no_log: true

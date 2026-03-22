@@ -1,0 +1,37 @@
+#!/bin/bash
+set -e
+
+export B2_ACCOUNT_ID="{{ restic_b2_key_id }}"
+export B2_ACCOUNT_KEY="{{ restic_b2_application_key }}"
+export RESTIC_REPOSITORY="b2:{{ restic_b2_bucket }}:postgres/{{ item.name }}"
+export RESTIC_PASSWORD="{{ restic_password }}"
+
+DUMP_FILE="/tmp/{{ item.name }}.sql"
+
+echo "Starting backup of {{ item.name }}"
+
+PGPASSWORD="{{ item.db_password }}" pg_dump \
+  -h localhost \
+  -U {{ item.db_user }} \
+  {{ item.database }} > "$DUMP_FILE"
+
+restic snapshots &>/dev/null || restic init
+
+restic backup "$DUMP_FILE" \
+  --tag {{ item.name }} \
+  --tag postgres
+
+rm -f "$DUMP_FILE"
+
+restic forget \
+  --tag {{ item.name }} \
+  --keep-daily {{ item.retention.daily }} \
+{% if item.retention.weekly is defined %}
+  --keep-weekly {{ item.retention.weekly }} \
+{% endif %}
+{% if item.retention.monthly is defined %}
+  --keep-monthly {{ item.retention.monthly }} \
+{% endif %}
+  --prune
+
+echo "Backup of {{ item.name }} complete"

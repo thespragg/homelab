@@ -1,0 +1,15 @@
+[Unit]
+Description=Timer for restic backup of {{ item.name }}
+
+[Timer]
+{% if item.schedule == 'hourly' %}
+OnCalendar=hourly
+{% elif item.schedule == 'daily' %}
+OnCalendar=daily
+{% elif item.schedule == 'weekly' %}
+OnCalendar=weekly
+{% endif %}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

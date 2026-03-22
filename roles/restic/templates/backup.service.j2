@@ -1,0 +1,7 @@
+[Unit]
+Description=Restic backup for {{ item.name }}
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/etc/restic/backup-{{ item.name }}.sh
