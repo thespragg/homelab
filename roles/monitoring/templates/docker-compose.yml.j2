@@ -5,7 +5,6 @@ services:
     restart: unless-stopped
     ports:
       - "{{ monitoring_loki_port }}:{{ monitoring_loki_port }}"
-      - "{{ monitoring_loki_otlp_port }}:4317"
     volumes:
       - {{ monitoring_dir }}/loki-config.yml:/etc/loki/local-config.yaml
       - {{ monitoring_dir }}/loki-data:/loki/data

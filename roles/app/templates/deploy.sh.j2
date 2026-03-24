@@ -8,17 +8,17 @@ RELEASES_DIR="$APP_DIR/releases"
 
 echo "Starting deploy of $APP_NAME"
 
-AUTH_HEADER=""
 {% if app_github_token != "" %}
 TOKEN=$(cat "$APP_DIR/.github-token")
-AUTH_HEADER="-H \"Authorization: Bearer $TOKEN\""
+RELEASE_INFO=$(curl -s -H "Authorization: Bearer $TOKEN" \
+  https://api.github.com/repos/$GITHUB_REPO/releases/latest)
+{% else %}
+RELEASE_INFO=$(curl -s \
+  https://api.github.com/repos/$GITHUB_REPO/releases/latest)
 {% endif %}
 
-RELEASE_INFO=$(curl -s $AUTH_HEADER \
-  https://api.github.com/repos/$GITHUB_REPO/releases/latest)
-
 VERSION=$(echo $RELEASE_INFO | grep -o '"tag_name": "[^"]*' | cut -d'"' -f4)
-DOWNLOAD_URL=$(echo $RELEASE_INFO | grep -o '"browser_download_url": "[^"]*' | cut -d'"' -f4)
+ASSET_URL=$(echo $RELEASE_INFO | grep -o '"url": "https://api.github.com/repos/[^"]*/releases/assets/[0-9]*"' | head -1 | cut -d'"' -f4)
 
 if [ -z "$VERSION" ]; then
   echo "No releases found for $GITHUB_REPO"
@@ -34,8 +34,12 @@ if [ -d "$RELEASE_DIR" ]; then
 fi
 
 mkdir -p "$RELEASE_DIR"
-echo "Downloading $DOWNLOAD_URL"
-curl -L $AUTH_HEADER "$DOWNLOAD_URL" -o "$RELEASE_DIR/$APP_NAME"
+echo "Downloading $ASSET_URL"
+{% if app_github_token != "" %}
+curl -L -H "Authorization: Bearer $TOKEN" -H "Accept: application/octet-stream" "$ASSET_URL" -o "$RELEASE_DIR/$APP_NAME"
+{% else %}
+curl -L -H "Accept: application/octet-stream" "$ASSET_URL" -o "$RELEASE_DIR/$APP_NAME"
+{% endif %}
 chmod +x "$RELEASE_DIR/$APP_NAME"
 
 PREVIOUS=$(readlink "$APP_DIR/current" || echo "")

@@ -2,3 +2,4 @@ postgres_version: 16
 postgres_superuser_password: "{{ vault_postgres_password }}"
 
 postgres_databases: []
+postgres_allowed_hosts: []

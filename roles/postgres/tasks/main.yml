@@ -30,9 +30,33 @@
     state: present
     update_cache: yes
 
+- name: Allow postgres through firewall
+  ufw:
+    rule: allow
+    port: 5432
+    proto: tcp
+    src: "{{ item }}"
+  loop: "{{ postgres_allowed_hosts }}"
+
+- name: Configure listen_addresses
+  lineinfile:
+    path: /etc/postgresql/{{ postgres_version }}/main/postgresql.conf
+    regexp: '^#?listen_addresses'
+    line: "listen_addresses = '*'"
+  notify: Restart postgres
+
+- name: Configure pg_hba for allowed hosts
+  lineinfile:
+    path: /etc/postgresql/{{ postgres_version }}/main/pg_hba.conf
+    line: "host    all    all    {{ item }}/32    scram-sha-256"
+    regexp: "^host\\s+all\\s+all\\s+{{ item | regex_escape }}/32\\s"
+    state: present
+  loop: "{{ postgres_allowed_hosts }}"
+  notify: Restart postgres
+
 - name: Ensure postgres is started and enabled
   systemd:
-    name: postgresql
+    name: postgresql@{{ postgres_version }}-main
     state: started
     enabled: yes
 
@@ -71,6 +95,58 @@
     role: "{{ item.user }}"
     privs: ALL
     type: database
+    state: present
+  loop: "{{ postgres_databases }}"
+  no_log: true
+
+- name: Grant user privileges on all tables
+  become_user: postgres
+  postgresql_privs:
+    database: "{{ item.name }}"
+    role: "{{ item.user }}"
+    privs: ALL
+    type: table
+    objs: ALL_IN_SCHEMA
+    schema: public
+    state: present
+  loop: "{{ postgres_databases }}"
+  no_log: true
+
+- name: Grant user privileges on all sequences
+  become_user: postgres
+  postgresql_privs:
+    database: "{{ item.name }}"
+    role: "{{ item.user }}"
+    privs: ALL
+    type: sequence
+    objs: ALL_IN_SCHEMA
+    schema: public
+    state: present
+  loop: "{{ postgres_databases }}"
+  no_log: true
+
+- name: Set default privileges on tables for future migrations
+  become_user: postgres
+  postgresql_privs:
+    database: "{{ item.name }}"
+    role: "{{ item.user }}"
+    privs: ALL
+    type: default_privs
+    objs: TABLES
+    schema: public
+    state: present
+  loop: "{{ postgres_databases }}"
+  no_log: true
+
+- name: Set default privileges on sequences for future migrations
+  become_user: postgres
+  postgresql_privs:
+    database: "{{ item.name }}"
+    role: "{{ item.user }}"
+    privs: ALL
+    type: default_privs
+    objs: SEQUENCES
+    schema: public
     state: present
   loop: "{{ postgres_databases }}"
   no_log: true

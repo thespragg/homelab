@@ -4,7 +4,8 @@ github_runner_repo: thespragg/osrs-clan-bot
 github_runner_service_name: osrs-clan-bot
 app_github_repo: thespragg/osrs-clan-bot
 app_deploy_key: "ssh-ed25519 AAAA... osrs-clan-bot-deploy"
+app_github_token: "{{ vault_github_token }}"
 app_env_vars:
-  DISCORD_TOKEN: "{{ vault_discord_token }}"
+  Discord__Token: "{{ vault_discord_token }}"
   ConnectionStrings__Default: "Host={{ postgres_host }};Database=osrs_clan_bot;Username=osrs_clan_bot_user;Password={{ vault_osrs_clan_bot_db_password }}"
-  OTEL_EXPORTER_OTLP_ENDPOINT: "http://10.10.0.23:4317"
+  Otel__OtlpEndpoint: "http://10.10.0.23:3100/otlp"
