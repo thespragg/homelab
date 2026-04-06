@@ -1,0 +1,18 @@
+auto lo
+iface lo inet loopback
+
+iface {{ ansible_default_ipv4.interface }} inet manual
+
+auto vmbr0
+iface vmbr0 inet static
+        address {{ proxmox_management_ip }}
+        gateway {{ proxmox_management_gateway }}
+        bridge-ports {{ ansible_default_ipv4.interface }}
+        bridge-stp off
+        bridge-fd 0
+        bridge-vlan-aware yes
+        bridge-vids 2-4094
+
+# VLAN {{ proxmox_wan_vlan }} - WAN (ONT)
+# VLAN {{ proxmox_lan_vlan }} - LAN ({{ proxmox_lan_cidr }})
+# OPNsense VM NICs are attached to vmbr0 with these VLAN tags

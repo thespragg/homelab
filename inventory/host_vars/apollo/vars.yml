@@ -1,0 +1,16 @@
+proxmox_hostname: apollo
+proxmox_domain: internal.thespragg.dev
+
+# Network - management (current, pre-cutover)
+proxmox_management_ip: 192.168.0.94/24
+proxmox_management_gateway: 192.168.0.1
+
+# Network - post-cutover (update these before running after WAN cutover)
+# proxmox_management_ip: 10.0.20.2/24
+# proxmox_management_gateway: 10.0.20.1
+
+# VLANs
+proxmox_wan_vlan: 10
+proxmox_lan_vlan: 20
+proxmox_lan_cidr: 10.0.20.0/24
+proxmox_lan_gateway: 10.0.20.1

@@ -1,0 +1,12 @@
+- name: Restart sshd
+  service:
+    name: sshd
+    state: restarted
+
+- name: Restart fail2ban
+  service:
+    name: fail2ban
+    state: restarted
+
+- name: Apply network configuration
+  command: ifreload -a

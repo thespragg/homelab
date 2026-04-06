@@ -1,0 +1,15 @@
+- name: Upgrade all packages
+  apt:
+    upgrade: dist
+    update_cache: no
+
+- name: Install essential packages
+  apt:
+    name:
+      - curl
+      - wget
+      - git
+      - unzip
+      - fail2ban
+      - libpam-google-authenticator
+    state: present

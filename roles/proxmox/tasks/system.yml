@@ -1,0 +1,13 @@
+- name: Set timezone
+  timezone:
+    name: Europe/London
+
+- name: Install locales package
+  apt:
+    name: locales
+    state: present
+
+- name: Generate en_US.UTF-8 locale
+  locale_gen:
+    name: en_US.UTF-8
+    state: present

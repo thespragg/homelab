@@ -1,0 +1,14 @@
+- name: Deploy network interface configuration
+  template:
+    src: interfaces.j2
+    dest: /etc/network/interfaces
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  notify: Apply network configuration
+
+- name: Install ifupdown2 for live network reloading
+  apt:
+    name: ifupdown2
+    state: present

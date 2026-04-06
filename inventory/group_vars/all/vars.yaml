@@ -1,2 +1,5 @@
 postgres_host: 10.10.0.22
 restic_b2_bucket: spragg-homelab-backups
+
+ssh_authorized_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDybCE37umMe9ncx/tui+ahFL5cFCPXfY8GElM9ib0HM alistair.spragg@gmail.com"
