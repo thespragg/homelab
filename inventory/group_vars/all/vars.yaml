@@ -3,3 +3,4 @@ restic_b2_bucket: spragg-homelab-backups
 
 ssh_authorized_keys:
   - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDybCE37umMe9ncx/tui+ahFL5cFCPXfY8GElM9ib0HM alistair.spragg@gmail.com"
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIgl6d6O1IfW9QO/0m7n0pUsxehSSz660IbBOOPFfzYB thespragg@alistair-desktop"

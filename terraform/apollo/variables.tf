@@ -9,11 +9,6 @@ variable "opnsense_img_url" {
   type        = string
 }
 
-variable "opnsense_img_checksum" {
-  description = "SHA256 checksum of the OPNsense VGA image. Listed alongside the download on the OPNsense download page."
-  type        = string
-}
-
 variable "ssh_private_key_path" {
   description = "Path to the SSH private key used to connect to apollo for provisioning."
   type        = string

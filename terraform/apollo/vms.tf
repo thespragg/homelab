@@ -26,13 +26,6 @@ resource "proxmox_virtual_environment_vm" "opnsense" {
     vlan_id = 20
   }
 
-  disk {
-    datastore_id = "local-lvm"
-    interface    = "virtio0"
-    size         = 20
-    file_format  = "raw"
-  }
-
   started    = false
   boot_order = ["virtio0"]
 

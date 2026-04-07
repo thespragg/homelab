@@ -1,12 +1,11 @@
 resource "null_resource" "opnsense_disk_import" {
   triggers = {
-    image_checksum = var.opnsense_img_checksum
-    vm_id          = proxmox_virtual_environment_vm.opnsense.id
+    image_url = var.opnsense_img_url
+    vm_id     = proxmox_virtual_environment_vm.opnsense.vm_id
   }
 
   depends_on = [
     proxmox_virtual_environment_vm.opnsense,
-    proxmox_download_file.opnsense_img,
   ]
 
   connection {
@@ -18,8 +17,13 @@ resource "null_resource" "opnsense_disk_import" {
 
   provisioner "remote-exec" {
     inline = [
-      "dd if=/var/lib/vz/template/iso/opnsense-vga-amd64.img of=/dev/pve/vm-100-disk-0 bs=8M status=progress",
-      "qm start 100",
+      "wget -q -O /tmp/opnsense.img.bz2 '${var.opnsense_img_url}'",
+      "bunzip2 -f /tmp/opnsense.img.bz2",
+      "qm importdisk ${proxmox_virtual_environment_vm.opnsense.vm_id} /tmp/opnsense.img local-lvm --format raw",
+      "qm set ${proxmox_virtual_environment_vm.opnsense.vm_id} --virtio0 local-lvm:vm-${proxmox_virtual_environment_vm.opnsense.vm_id}-disk-0",
+      "qm set ${proxmox_virtual_environment_vm.opnsense.vm_id} --boot order=virtio0",
+      "rm -f /tmp/opnsense.img",
+      "qm start ${proxmox_virtual_environment_vm.opnsense.vm_id}",
     ]
   }
 }
