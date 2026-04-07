@@ -1,5 +1,6 @@
 proxmox_hostname: apollo
 proxmox_domain: internal.thespragg.dev
+proxmox_nic: nic0
 
 # Network - management (current, pre-cutover)
 proxmox_management_ip: 192.168.0.94/24

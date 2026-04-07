@@ -5,3 +5,4 @@
 - import_tasks: fail2ban.yml
 - import_tasks: system.yml
 - import_tasks: network.yml
+- import_tasks: storage.yml
