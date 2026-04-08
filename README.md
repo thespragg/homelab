@@ -38,7 +38,8 @@ Terraform provisions the VM using a pre-installed VGA disk image — no installe
 Open the console in the Proxmox web UI and log in (`root` / `opnsense`), then work through the menu:
 
 1. **Assign interfaces** (option `1`):
-   - VLANs: `n`
+   - Do you want to configure LAGGs now? `n`
+   - Do you want to configure VLANs now?: `n`
    - WAN: `vtnet0`
    - LAN: `vtnet1`
 

@@ -5,7 +5,7 @@ variable "proxmox_api_token" {
 }
 
 variable "opnsense_img_url" {
-  description = "Direct download URL for the OPNsense VGA disk image (gz compressed). Get from https://opnsense.org/download/ - select VGA, amd64."
+  description = "Direct download URL for the OPNsense nano disk image (bz2 compressed). Get from https://opnsense.org/download/ - select nano, amd64."
   type        = string
 }
 
