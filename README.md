@@ -31,22 +31,83 @@ Then initialise and apply:
 cd terraform/apollo && terraform init && terraform apply
 ```
 
-## OPNsense initial setup
+## Building a custom OPNsense image
 
-Terraform provisions the VM using a pre-installed VGA disk image — no installer needed. The VM boots straight into OPNsense.
+Terraform expects a pre-configured OPNsense image hosted at a URL. To build one:
 
-Open the console in the Proxmox web UI and log in (`root` / `opnsense`), then work through the menu:
+**1. Download and extract the base nano image**
 
-1. **Assign interfaces** (option `1`):
-   - Do you want to configure LAGGs now? `n`
-   - Do you want to configure VLANs now?: `n`
-   - WAN: `vtnet0`
-   - LAN: `vtnet1`
+Get the nano amd64 image from https://opnsense.org/download/ and extract it:
 
-2. **Set interface IPs** (option `2`):
-   - LAN IP: `10.0.20.1/24`
-   - Enable DHCP: `y`, range `10.0.20.100`–`10.0.20.200`
-   - Enable HTTP: `y`
+```bash
+bunzip2 -k OPNsense-*.img.bz2
+```
+
+**2. Boot in QEMU**
+
+```bash
+brew install qemu
+
+qemu-system-x86_64 \
+  -m 2048 \
+  -drive file=OPNsense-*.img,format=raw,if=virtio \
+  -netdev user,id=net0,hostfwd=tcp::8080-:80,hostfwd=tcp::8443-:443 \
+  -device virtio-net-pci,netdev=net0 \
+  -nographic
+```
+
+**3. Assign interfaces** (option `1`)
+
+```
+Do you want to set up VLANs now? y
+
+Parent interface: vtnet0  →  VLAN tag: 10
+Parent interface: vtnet0  →  VLAN tag: 20
+Parent interface: (blank)
+
+WAN interface: vtnet0_vlan10
+LAN interface: vtnet0_vlan20
+Optional:      (blank)
+Proceed?       y
+```
+
+**4. Set LAN IP address** (option `2`, select LAN)
+
+```
+IPv4 via DHCP:   n
+IPv4 address:    10.0.20.1
+Subnet bits:     24
+Upstream GW:     (blank)
+IPv6 via DHCP6:  n
+IPv6 address:    (blank)
+Enable DHCP:     y
+DHCP start:      10.0.20.100
+DHCP end:        10.0.20.200
+Revert to HTTP:  n
+```
+
+**5. Set root password and enable SSH** (option `8` — Shell)
+
+```bash
+passwd
+viconfig   # add <ssh><enabled>enabled</enabled><group>admins</group></ssh> inside <system>
+exit
+```
+
+**6. Power off**
+
+```bash
+poweroff
+```
+
+**7. Recompress and upload**
+
+```bash
+cp OPNsense-*.img opnsense-custom.img
+bzip2 opnsense-custom.img
+# upload opnsense-custom.img.bz2 to Cloudflare R2 (or equivalent)
+# copy the public URL into terraform/apollo/terraform.tfvars → opnsense_img_url
+```
 
 ## Accessing OPNsense web UI
 

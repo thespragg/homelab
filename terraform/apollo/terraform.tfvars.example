@@ -1,9 +1,7 @@
 # Copy this to terraform.tfvars and fill in your values
 # terraform.tfvars is gitignored
 
-proxmox_api_token     = "terraform@pve!terraform=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+proxmox_api_token = "terraform@pve!terraform=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
-# Get these from https://opnsense.org/download/ - select VGA image, amd64
-# Use a mirror URL (e.g. https://mirror.ams1.nl.leaseweb.net/opnsense/releases/26.1.2/OPNsense-26.1.2-vga-amd64.img.bz2)
-opnsense_img_url      = ""
-opnsense_img_checksum = ""
+# URL to your pre-configured OPNsense image (bz2 compressed)
+opnsense_img_url  = ""
