@@ -9,27 +9,28 @@ resource "proxmox_virtual_environment_vm" "opnsense" {
   }
 
   memory {
-    dedicated = 2048
+    dedicated = 4096
   }
 
-  # LAN - vtnet0, VLAN 20, 10.0.20.0/24
-  network_device {
-    bridge  = "vmbr0"
-    model   = "virtio"
-    vlan_id = 20
-  }
-
-  # WAN - vtnet1, untagged, temporary internet via Archer C6 during build phase
-  # At cutover: add vlan_id = 10
+  # trunk - vtnet0, passes tagged frames (VLAN 10 WAN, VLAN 20 LAN) at cutover
+  # OPNsense creates vlan subinterfaces internally (vtnet0_vlan10, vtnet0_vlan20)
   network_device {
     bridge = "vmbr0"
     model  = "virtio"
   }
 
-  started         = false
+  # WAN - vtnet1, untagged, temporary internet via existing router during build phase
+  # Remove at cutover
+  network_device {
+    bridge = "vmbr0"
+    model  = "virtio"
+  }
+
+  on_boot = true
+  started         = true
   stop_on_destroy = true
 
   operating_system {
-    type = "other" # FreeBSD
+    type = "other"
   }
 }

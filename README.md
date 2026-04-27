@@ -1,14 +1,13 @@
 # Homelab
 
 ## Prerequisites
-- Ansible installed
-- Terraform installed
+- Ansible, Terraform installed
 - SSH key access to hosts
 - Vault password file at `~/.ansible/vault-password`
 
 ## First-time Proxmox setup (Apollo)
 
-After running the Ansible proxmox playbook, create the Terraform API token on apollo:
+Run the Ansible proxmox playbook, then create the Terraform API token on Apollo:
 
 ```bash
 pveum user add terraform@pve
@@ -17,36 +16,17 @@ pveum aclmod / -user terraform@pve -role Terraform
 pveum user token add terraform@pve terraform --privsep 0
 ```
 
-Then set up the Terraform credentials:
-
 ```bash
+# Set vars
 cp terraform/apollo/terraform.tfvars.example terraform/apollo/terraform.tfvars
-# edit terraform.tfvars — add the token secret, and the OPNsense VGA image URL + checksum
-# from https://opnsense.org/download/ (VGA image, amd64)
-```
 
-Then initialise and apply:
-
-```bash
 cd terraform/apollo && terraform init && terraform apply
 ```
 
 ## Building a custom OPNsense image
 
-Terraform expects a pre-configured OPNsense image hosted at a URL. To build one:
-
-**1. Download and extract the base nano image**
-
-Get the nano amd64 image from https://opnsense.org/download/ and extract it:
-
 ```bash
 bunzip2 -k OPNsense-*.img.bz2
-```
-
-**2. Boot in QEMU**
-
-```bash
-brew install qemu
 
 qemu-system-x86_64 \
   -m 2048 \
@@ -56,116 +36,74 @@ qemu-system-x86_64 \
   -nographic
 ```
 
-**3. Assign interfaces** (option `1`)
-
+**Assign interfaces:**
 ```
-Do you want to set up VLANs now? y
-
-Parent interface: vtnet0  →  VLAN tag: 10
-Parent interface: vtnet0  →  VLAN tag: 20
-Parent interface: (blank)
-
-WAN interface: vtnet0_vlan10
-LAN interface: vtnet0_vlan20
-Optional:      (blank)
-Proceed?       y
+VLANs: y
+Parent: vtnet0 → tag 10, vtnet0 → tag 20, (blank)
+WAN: vtnet0_vlan10  LAN: vtnet0_vlan20
 ```
 
-**4. Set LAN IP address** (option `2`, select LAN)
-
+**Set LAN IP:**
 ```
-IPv4 via DHCP:   n
-IPv4 address:    10.0.20.1
-Subnet bits:     24
-Upstream GW:     (blank)
-IPv6 via DHCP6:  n
-IPv6 address:    (blank)
-Enable DHCP:     y
-DHCP start:      10.0.20.100
-DHCP end:        10.0.20.200
-Revert to HTTP:  n
+IPv4: 10.0.20.1/24, no gateway, DHCP 10.0.20.100–200
 ```
 
-**5. Set root password and enable SSH** (option `8` — Shell)
-
+**Option 8 — Shell:**
 ```bash
 passwd
 viconfig   # add <ssh><enabled>enabled</enabled><group>admins</group></ssh> inside <system>
-exit
-```
-
-**6. Power off**
-
-```bash
 poweroff
 ```
 
-**7. Recompress and upload**
-
 ```bash
-cp OPNsense-*.img opnsense-custom.img
-bzip2 opnsense-custom.img
-# upload opnsense-custom.img.bz2 to Cloudflare R2 (or equivalent)
-# copy the public URL into terraform/apollo/terraform.tfvars → opnsense_img_url
+cp OPNsense-*.img opnsense-custom.img && bzip2 opnsense-custom.img
+# upload to R2, copy URL into terraform.tfvars → opnsense_img_url
 ```
-
-## Accessing OPNsense web UI
-
-Apollo has a VLAN 20 interface at `10.0.20.2`, so you can tunnel through it rather than needing a device physically on VLAN 20:
-
-```bash
-ssh -L 8080:10.0.20.1:80 root@192.168.0.94 -N
-```
-
-Then browse to `http://localhost:8080`. Default credentials: `root` / `opnsense`.
 
 ## Running
 
-Ansible — provision everything:
-```bash
-ansible-playbook site.yml
-```
-
-Or a specific service:
 ```bash
 ansible-playbook playbooks/proxmox.yml
 ansible-playbook playbooks/osrs-clan-bot.yml
 ansible-playbook playbooks/postgres.yml
 ansible-playbook playbooks/monitoring.yml
 ansible-playbook playbooks/caddy.yml
-```
-
-Terraform — provision VMs and LXCs on Apollo:
-```bash
 cd terraform/apollo && terraform apply
 ```
 
-## WAN Cutover (Apollo)
+## OPNsense web UI
 
-When ready to cut over from the Archer C6 to OPNsense as the main router:
+`http://10.0.20.1` — credentials: `root` / `opnsense`
 
-1. **Switch** — log in to Sodola (192.168.1.x via direct cable + static IP):
-   - Set ONT port to access port, PVID 10
-   - Add tagged VLAN 10 to Apollo's trunk port
-   - Disconnect Archer C6 WAN port
+## Bootstrap (fresh install)
 
-2. **OPNsense** — swap the WAN interface from the temporary untagged bridge to the VLAN 10 interface and configure for your ISP (DHCP or PPPoE)
+Connect laptop to a VLAN 20 access port on the switch with a static IP (`10.0.20.x/24`, gateway `10.0.20.1`). Apollo is at `10.0.20.2` via L2 without OPNsense running.
 
-3. **Terraform** — update `terraform/apollo/vms.tf`, OPNsense WAN network device:
-   - Add `vlan_id = 10` to the first `network_device` block
-   - Run `terraform apply`
+```bash
+ansible-playbook playbooks/proxmox.yml
+cd terraform/apollo && terraform apply
+```
 
-4. **Ansible** — update `inventory/host_vars/apollo/vars.yml`:
-   - Uncomment the post-cutover `proxmox_management_ip` and `proxmox_management_gateway` lines
-   - Comment out the pre-cutover values
-   - Run `ansible-playbook playbooks/proxmox.yml`
+## WAN Cutover
 
-5. **DNS** — point devices to AdGuard on 10.0.20.x (or set it as upstream in OPNsense DHCP)
+1. **Switch** — log in to Sodola (direct cable, static IP on 192.168.1.x):
+   - ONT port: access, PVID 10
+   - Apollo port: tagged VLAN 10
+   - Disconnect Archer C6 WAN
+
+2. **OPNsense** — Interfaces > Assignments: reassign WAN from `vtnet1` to `vtnet0_vlan10`, configure for ISP. Remove pre-cutover rules:
+   - Firewall > Rules > WAN: remove `192.168.0.0/24 → This Firewall` and `192.168.0.0/24 → 10.0.20.0/24`
+   - Firewall > Rules > LAN: remove `192.168.0.0/24` rule
+   - Interfaces > WAN: re-enable "Block private networks"
+
+3. **Terraform** — remove the temporary vtnet1 `network_device` block from `vms.tf`, run `terraform apply`
+
+4. **Ansible** — swap the management IP/gateway in `inventory/host_vars/apollo/vars.yml` to the post-cutover values, run `ansible-playbook playbooks/proxmox.yml`
+
+5. **DNS** — point devices to AdGuard on `10.0.20.x` (or set as upstream in OPNsense DHCP)
 
 ## Vault
-Secrets are stored in per-host vault files under `inventory/host_vars/` and globally in `inventory/group_vars/all/vault.yml`.
 
-To edit a vault file:
 ```bash
 ansible-vault edit inventory/host_vars/<host>/vault.yml
 ```

@@ -11,8 +11,11 @@ echo "=== Importing disk ==="
 qm importdisk "$VMID" /var/tmp/opnsense.img local-lvm --format raw
 rm -f /var/tmp/opnsense.img
 
-echo "=== Attaching disk and starting VM ==="
-qm set "$VMID" --virtio0 "local-lvm:vm-$VMID-disk-0"
+echo "=== Finding imported disk ==="
+DISK=$(qm config "$VMID" | grep '^unused0:' | awk '{print $2}')
+
+echo "=== Attaching disk $DISK ==="
+qm set "$VMID" --virtio0 "$DISK"
 qm set "$VMID" --boot order=virtio0
 qm start "$VMID"
 
