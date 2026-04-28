@@ -1,6 +1,10 @@
 - name: Provision postgres
   hosts: postgres
   become: true
+  pre_tasks:
+    - name: Wait for host to be reachable
+      ansible.builtin.wait_for_connection:
+        timeout: 300
   roles:
     - common
     - postgres
