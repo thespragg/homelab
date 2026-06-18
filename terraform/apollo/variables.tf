@@ -4,8 +4,20 @@ variable "proxmox_api_token" {
   sensitive   = true
 }
 
+variable "proxmox_host" {
+  description = "Address used by Terraform and SSH to reach Apollo during bootstrap."
+  type        = string
+  default     = "apollo.internal.thespragg.dev"
+}
+
 variable "opnsense_img_url" {
-  description = "Direct download URL for the pre-configured OPNsense image (bz2 compressed)."
+  description = "Direct download URL for the installed OPNsense disk image (bz2 compressed)."
+  type        = string
+  sensitive   = true
+}
+
+variable "opnsense_img_sha256" {
+  description = "SHA-256 checksum of the compressed installed OPNsense image."
   type        = string
 }
 
@@ -33,16 +45,28 @@ variable "lan_vlan_id" {
   default     = 20
 }
 
+variable "iot_vlan_id" {
+  description = "VLAN ID for IoT devices."
+  type        = number
+  default     = 30
+}
+
+variable "homelab_vlan_id" {
+  description = "VLAN ID for homelab services."
+  type        = number
+  default     = 40
+}
+
 variable "wan1_vlan_id" {
   description = "VLAN ID for the active WAN connection."
   type        = number
-  default     = 100
+  default     = 901
 }
 
 variable "wan2_vlan_id" {
   description = "VLAN ID reserved for the second WAN connection."
   type        = number
-  default     = 101
+  default     = 902
 }
 
 variable "debian_lxc_template_url" {

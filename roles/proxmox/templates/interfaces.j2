@@ -4,21 +4,29 @@ iface lo inet loopback
 iface {{ proxmox_nic }} inet manual
 
 auto vmbr0
-iface vmbr0 inet manual
+iface vmbr0 inet {{ 'static' if proxmox_migration_mode else 'manual' }}
+{% if proxmox_migration_mode %}
+        address {{ proxmox_legacy_management_ip }}
+        gateway {{ proxmox_legacy_management_gateway }}
+{% endif %}
         bridge-ports {{ proxmox_nic }}
         bridge-stp off
         bridge-fd 0
         bridge-vlan-aware yes
-        bridge-vids {{ proxmox_allowed_vlans | join(' ') }}
+        bridge-vids {{ proxmox_allowed_vlans | join(' ') }}{% if proxmox_migration_mode %} 1{% endif %}
 
 auto vmbr0.{{ proxmox_management_vlan }}
 iface vmbr0.{{ proxmox_management_vlan }} inet static
         address {{ proxmox_management_ip }}
+{% if not proxmox_migration_mode %}
         gateway {{ proxmox_management_gateway }}
+{% endif %}
         vlan-raw-device vmbr0
 
 # VLAN {{ proxmox_management_vlan }} - infrastructure management ({{ proxmox_management_cidr }})
 # VLAN {{ proxmox_lan_vlan }} - LAN ({{ proxmox_lan_cidr }})
+# VLAN {{ proxmox_iot_vlan }} - IoT
+# VLAN {{ proxmox_homelab_vlan }} - homelab services
 # VLAN {{ proxmox_wan1_vlan }} - WAN1
 # VLAN {{ proxmox_wan2_vlan }} - WAN2 (reserved/disconnected)
 # VLAN {{ proxmox_native_vlan }} - unused native VLAN

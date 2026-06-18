@@ -2,14 +2,19 @@
 # terraform.tfvars is gitignored
 
 proxmox_api_token = "terraform@pve!terraform=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# When running directly on Apollo, use its currently reachable address.
+# proxmox_host = "192.168.0.94"
 
-# URL to your pre-configured OPNsense image (bz2 compressed)
-opnsense_img_url  = ""
+# Public or presigned URL to the installed OPNsense image in R2
+opnsense_img_url = ""
+opnsense_img_sha256 = ""
 
 # Optional overrides (defaults should work for most setups)
 # ssh_public_key_path     = "~/.ssh/id_ed25519.pub"
 # management_vlan_id      = 10
 # lan_vlan_id             = 20
-# wan1_vlan_id            = 100
-# wan2_vlan_id            = 101
+# iot_vlan_id             = 30
+# homelab_vlan_id         = 40
+# wan1_vlan_id            = 901
+# wan2_vlan_id            = 902
 # debian_lxc_template_url = "http://download.proxmox.com/images/system/debian-12-standard_12.7-1_amd64.tar.zst"

@@ -62,6 +62,59 @@
     status_code: 200
   when: management_rule_add is changed
 
+- name: Find network policy rules
+  uri:
+    url: "{{ opnsense_api_url }}/api/firewall/filter/searchRule?current=1&rowCount=-1&searchPhrase={{ item.description | urlencode }}"
+    method: GET
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    status_code: 200
+  loop: "{{ opnsense_network_rules }}"
+  register: network_rule_search
+
+- name: Add network policy rules
+  uri:
+    url: "{{ opnsense_api_url }}/api/firewall/filter/addRule"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      rule: "{{ {
+        'enabled': '1',
+        'action': item.item.action,
+        'quick': '1',
+        'interface': item.item.interface,
+        'direction': 'in',
+        'ipprotocol': 'inet',
+        'protocol': item.item.protocol,
+        'source_net': item.item.source,
+        'destination_net': item.item.destination,
+        'description': item.item.description
+        } | combine(
+          {'destination_port': item.item.destination_port}
+          if item.item.destination_port is defined else {}
+        ) }}"
+    status_code: 200
+  loop: "{{ network_rule_search.results }}"
+  when: item.json.rows | length == 0
+  register: network_rule_add
+  changed_when: true
+
+- name: Apply network policy rules
+  uri:
+    url: "{{ opnsense_api_url }}/api/firewall/filter/apply"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body: {}
+    status_code: 200
+  when: network_rule_add is changed
+
 - name: Set Unbound DNS port
   uri:
     url: "{{ opnsense_api_url }}/api/unbound/settings/set"
@@ -129,7 +182,7 @@
     body: {}
     status_code: 200
 
-- name: Enable Kea DHCP on LAN interface
+- name: Enable Kea DHCP on internal interfaces
   uri:
     url: "{{ opnsense_api_url }}/api/kea/dhcpv4/set"
     method: POST
@@ -141,7 +194,7 @@
       dhcpv4:
         general:
           enabled: "1"
-          interfaces: "{{ opnsense_dhcp_interface }}"
+          interfaces: "{{ opnsense_dhcp_interfaces }}"
     status_code: 200
 
 - name: Get existing Kea DHCP subnets
@@ -159,7 +212,7 @@
     status_code: 200
   register: kea_subnets
 
-- name: Add Kea DHCP LAN subnet
+- name: Add Kea DHCP subnets
   uri:
     url: "{{ opnsense_api_url }}/api/kea/dhcpv4/addSubnet"
     method: POST
@@ -169,16 +222,17 @@
     body_format: json
     body:
       subnet4:
-        subnet: "{{ opnsense_lan_cidr }}"
-        pools: "{{ opnsense_dhcp_range_start }} - {{ opnsense_dhcp_range_end }}"
+        subnet: "{{ item.subnet }}"
+        pools: "{{ item.range_start }} - {{ item.range_end }}"
         option_data:
-          routers: "{{ opnsense_lan_ip }}"
+          routers: "{{ item.gateway }}"
           domain_name_servers: "{{ opnsense_dhcp_dns }}"
-        description: "LAN"
+        description: "{{ item.description }}"
     status_code: 200
+  loop: "{{ opnsense_dhcp_subnets }}"
   when: >
     (kea_subnets.json.rows |
-     selectattr('subnet', 'equalto', opnsense_lan_cidr) |
+     selectattr('subnet', 'equalto', item.subnet) |
      list | length) == 0
 
 - name: Apply Kea DHCP configuration

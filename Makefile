@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := all
 
-.PHONY: all apollo apollo-ansible titan titan-ansible plan check help
+.PHONY: all apollo apollo-ansible opnsense-bootstrap-config opnsense-config-disk titan titan-ansible plan check help
 
 all: apollo titan ## Deploy everything
 
@@ -11,6 +11,14 @@ apollo: ## Full Apollo deploy (Terraform + Ansible)
 
 apollo-ansible: ## Ansible only for Apollo
 	ansible-playbook playbooks/apollo.yml
+
+opnsense-bootstrap-config: ## Render config.xml for the stock OPNsense importer
+	python3 scripts/render-opnsense-bootstrap.py \
+		bootstrap/opnsense/config.xml.sample build/opnsense/conf/config.xml \
+		--ssh-public-key "$${SSH_PUBLIC_KEY_PATH:-$$HOME/.ssh/id_ed25519.pub}"
+
+opnsense-config-disk: opnsense-bootstrap-config ## Build the FAT OPNsense importer disk (run on Linux)
+	sh scripts/create-opnsense-config-disk.sh
 
 titan: titan-ansible ## Full Titan deploy (Ansible only until Terraform is added)
 

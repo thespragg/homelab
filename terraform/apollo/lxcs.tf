@@ -12,8 +12,8 @@ resource "proxmox_virtual_environment_container" "adguard" {
 
     ip_config {
       ipv4 {
-        address = "10.0.20.3/24"
-        gateway = "10.0.20.1"
+        address = "10.0.40.3/24"
+        gateway = "10.0.40.1"
       }
     }
 
@@ -25,7 +25,7 @@ resource "proxmox_virtual_environment_container" "adguard" {
   network_interface {
     name    = "eth0"
     bridge  = "vmbr0"
-    vlan_id = var.lan_vlan_id
+    vlan_id = var.homelab_vlan_id
   }
 
   disk {
@@ -57,8 +57,8 @@ resource "proxmox_virtual_environment_container" "caddy" {
 
     ip_config {
       ipv4 {
-        address = "10.0.20.4/24"
-        gateway = "10.0.20.1"
+        address = "10.0.40.4/24"
+        gateway = "10.0.40.1"
       }
     }
 
@@ -70,7 +70,7 @@ resource "proxmox_virtual_environment_container" "caddy" {
   network_interface {
     name    = "eth0"
     bridge  = "vmbr0"
-    vlan_id = var.lan_vlan_id
+    vlan_id = var.homelab_vlan_id
   }
 
   disk {

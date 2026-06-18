@@ -12,8 +12,8 @@ resource "proxmox_virtual_environment_vm" "opnsense" {
     dedicated = 4096
   }
 
-  # Keep this order and the MAC addresses stable: the custom image assigns interfaces
-  # by their vtnet names. Proxmox handles VLAN tags, so OPNsense sees access-style NICs.
+  # Keep this order and the MAC addresses stable: the imported bootstrap config
+  # assigns vtnet names. Proxmox handles VLAN tags, so OPNsense sees access-style NICs.
   # vtnet0: WAN1
   network_device {
     bridge      = "vmbr0"
@@ -44,6 +44,22 @@ resource "proxmox_virtual_environment_vm" "opnsense" {
     mac_address = "02:00:00:00:00:20"
     model       = "virtio"
     vlan_id     = var.lan_vlan_id
+  }
+
+  # vtnet4: IoT
+  network_device {
+    bridge      = "vmbr0"
+    mac_address = "02:00:00:00:00:30"
+    model       = "virtio"
+    vlan_id     = var.iot_vlan_id
+  }
+
+  # vtnet5: homelab services
+  network_device {
+    bridge      = "vmbr0"
+    mac_address = "02:00:00:00:00:40"
+    model       = "virtio"
+    vlan_id     = var.homelab_vlan_id
   }
 
   on_boot         = true
