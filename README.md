@@ -38,15 +38,34 @@ qemu-system-x86_64 \
 
 **Assign interfaces:**
 ```
-VLANs: y
-Parent: vtnet0 → tag 10, vtnet0 → tag 20, (blank)
-WAN: vtnet0_vlan10  LAN: vtnet0_vlan20
+VLANs: n
+WAN: vtnet0
+LAN: vtnet3
+OPT1: vtnet1, named WAN2 and left disabled
+OPT2: vtnet2, named MGMT
 ```
 
-**Set LAN IP:**
+Proxmox applies the VLAN tags before frames reach the VM. Do not create VLAN
+subinterfaces in OPNsense. Terraform fixes the NIC order and MAC addresses as:
+
+| OPNsense NIC | Purpose | VLAN | Address |
+|---|---|---:|---|
+| `vtnet0` | WAN1 | 100 | ISP configuration |
+| `vtnet1` | WAN2 | 101 | Disabled until connected |
+| `vtnet2` | MGMT | 10 | `10.0.10.1/24` |
+| `vtnet3` | LAN | 20 | `10.0.20.1/24` |
+
+**Set interface addresses:**
 ```
-IPv4: 10.0.20.1/24, no gateway, DHCP 10.0.20.100–200
+MGMT: 10.0.10.1/24, no gateway or DHCP
+LAN: 10.0.20.1/24, no gateway, DHCP 10.0.20.100–200
 ```
+
+Before exporting the image, add a rule on MGMT allowing source `10.0.10.2` to
+"This Firewall" on the API port. This bootstrap rule is required because
+OPNsense does not provide a supported API for initial interface assignment or
+for creating a rule before its API is reachable. The Ansible role owns the
+subsequent LAN-to-Proxmox management rules.
 
 **Option 8 — Shell:**
 ```bash
@@ -73,34 +92,42 @@ cd terraform/apollo && terraform apply
 
 ## OPNsense web UI
 
-`http://10.0.20.1` — credentials: `root` / `opnsense`
+`http://10.0.10.1` from the management VLAN, or `http://10.0.20.1` from LAN.
 
 ## Bootstrap (fresh install)
 
-Connect laptop to a VLAN 20 access port on the switch with a static IP (`10.0.20.x/24`, gateway `10.0.20.1`). Apollo is at `10.0.20.2` via L2 without OPNsense running.
+Configure the switch before moving Apollo's management address:
+
+| Switch port | Mode | Native/PVID | Tagged VLANs |
+|---|---|---:|---|
+| WAN1 | Access | 100 | None |
+| Apollo | Trunk | 999 | 10, 20, 100, 101 |
+| Access point | Trunk | 10 | 20 and any SSID VLANs |
+| Future WAN2 | Access | 101 | None; leave disconnected |
+
+VLAN 999 is an unused native VLAN. It must not have an address or DHCP server.
+Connect a laptop to a VLAN 10 access port with a temporary `10.0.10.x/24`
+address for the management cutover. Apollo will move to `10.0.10.2` and
+OPNsense MGMT is `10.0.10.1`.
 
 ```bash
 ansible-playbook playbooks/proxmox.yml
 cd terraform/apollo && terraform apply
 ```
 
-## WAN Cutover
+## Network Cutover
 
-1. **Switch** — log in to Sodola (direct cable, static IP on 192.168.1.x):
-   - ONT port: access, PVID 10
-   - Apollo port: tagged VLAN 10
-   - Disconnect Archer C6 WAN
-
-2. **OPNsense** — Interfaces > Assignments: reassign WAN from `vtnet1` to `vtnet0_vlan10`, configure for ISP. Remove pre-cutover rules:
-   - Firewall > Rules > WAN: remove `192.168.0.0/24 → This Firewall` and `192.168.0.0/24 → 10.0.20.0/24`
-   - Firewall > Rules > LAN: remove `192.168.0.0/24` rule
-   - Interfaces > WAN: re-enable "Block private networks"
-
-3. **Terraform** — remove the temporary vtnet1 `network_device` block from `vms.tf`, run `terraform apply`
-
-4. **Ansible** — swap the management IP/gateway in `inventory/host_vars/apollo/vars.yml` to the post-cutover values, run `ansible-playbook playbooks/proxmox.yml`
-
-5. **DNS** — point devices to AdGuard on `10.0.20.x` (or set as upstream in OPNsense DHCP)
+1. Configure the Sodola ports using the table above. Do not connect WAN2.
+2. Rebuild/upload the OPNsense image with the four interface assignments above.
+3. Run `ansible-playbook playbooks/proxmox.yml` from the workstation while you
+   have local Proxmox console access. The SSH session will drop when management
+   moves to VLAN 10; use the console if the network reload needs intervention.
+4. Verify `https://10.0.10.2:8006` from the temporary VLAN 10 laptop connection.
+5. Run `terraform -chdir=terraform/apollo apply`, then `make apollo-ansible`.
+6. Move the laptop back to trusted LAN/DHCP and verify that
+   `https://10.0.10.2:8006` routes through OPNsense.
+7. Connect WAN1 and configure its ISP settings. Keep WAN2 disabled until its
+   switch port and upstream circuit are available.
 
 ## Vault
 

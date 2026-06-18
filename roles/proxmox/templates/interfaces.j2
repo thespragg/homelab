@@ -4,20 +4,21 @@ iface lo inet loopback
 iface {{ proxmox_nic }} inet manual
 
 auto vmbr0
-iface vmbr0 inet static
-        address {{ proxmox_management_ip }}
-        gateway {{ proxmox_management_gateway }}
+iface vmbr0 inet manual
         bridge-ports {{ proxmox_nic }}
         bridge-stp off
         bridge-fd 0
         bridge-vlan-aware yes
-        bridge-vids 2-4094
+        bridge-vids {{ proxmox_allowed_vlans | join(' ') }}
 
-auto vmbr0.{{ proxmox_lan_vlan }}
-iface vmbr0.{{ proxmox_lan_vlan }} inet static
-        address {{ proxmox_lan_gateway | regex_replace('\.1$', '.2') }}/24
+auto vmbr0.{{ proxmox_management_vlan }}
+iface vmbr0.{{ proxmox_management_vlan }} inet static
+        address {{ proxmox_management_ip }}
+        gateway {{ proxmox_management_gateway }}
         vlan-raw-device vmbr0
 
-# VLAN {{ proxmox_wan_vlan }} - WAN (ONT)
+# VLAN {{ proxmox_management_vlan }} - infrastructure management ({{ proxmox_management_cidr }})
 # VLAN {{ proxmox_lan_vlan }} - LAN ({{ proxmox_lan_cidr }})
-# OPNsense VM NICs are attached to vmbr0 with these VLAN tags
+# VLAN {{ proxmox_wan1_vlan }} - WAN1
+# VLAN {{ proxmox_wan2_vlan }} - WAN2 (reserved/disconnected)
+# VLAN {{ proxmox_native_vlan }} - unused native VLAN

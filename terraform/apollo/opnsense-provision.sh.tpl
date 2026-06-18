@@ -17,6 +17,8 @@ DISK=$(qm config "$VMID" | grep '^unused0:' | awk '{print $2}')
 echo "=== Attaching disk $DISK ==="
 qm set "$VMID" --virtio0 "$DISK"
 qm set "$VMID" --boot order=virtio0
+qm stop "$VMID" 2>/dev/null || true
+sleep 3
 qm start "$VMID"
 
 echo "=== Done ==="
