@@ -6,3 +6,6 @@ caddy_proxies:
     tls_insecure_skip_verify: true
   - name: grafana
     backend: "10.10.0.23:3000"
+  - name: unifi
+    backend: "https://10.0.40.5:11443"
+    tls_insecure_skip_verify: true

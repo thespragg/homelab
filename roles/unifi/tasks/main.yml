@@ -1,0 +1,151 @@
+- name: Validate UniFi OS Server configuration
+  ansible.builtin.assert:
+    that:
+      - unifi_os_server_version | length > 0
+      - unifi_os_server_installer_url | length > 0
+    fail_msg: Set a pinned UniFi OS Server version and installer URL.
+
+- name: Install UniFi OS Server dependencies
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - iptables
+      - podman
+      - slirp4netns
+      - uidmap
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create UniFi OS Server installer directory
+  ansible.builtin.file:
+    path: "{{ unifi_os_server_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download UniFi OS Server installer
+  ansible.builtin.get_url:
+    url: "{{ unifi_os_server_installer_url }}"
+    dest: "{{ unifi_os_server_install_dir }}/unifi-os-server-{{ unifi_os_server_version }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create UniFi OS Server installer compatibility directory
+  ansible.builtin.file:
+    path: "{{ unifi_os_server_installer_bin_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install UniFi OS Server LXC sysctl wrapper
+  ansible.builtin.copy:
+    dest: "{{ unifi_os_server_installer_bin_dir }}/sysctl"
+    owner: root
+    group: root
+    mode: "0755"
+    content: |
+      #!/bin/sh
+      if [ "$#" -eq 1 ] && [ "$1" = "--system" ]; then
+        exec /usr/sbin/sysctl -w "net.ipv4.ping_group_range={{ unifi_os_server_ping_group_range }}"
+      fi
+      exec /usr/sbin/sysctl "$@"
+
+- name: Check UniFi OS Server install marker
+  ansible.builtin.stat:
+    path: "{{ unifi_os_server_install_dir }}/.installed-{{ unifi_os_server_version }}"
+  register: unifi_os_server_install_marker
+
+- name: Check UniFi OS Server CLI
+  ansible.builtin.stat:
+    path: /usr/local/bin/uosserver
+  register: unifi_os_server_cli
+
+- name: Check UniFi OS Server runtime
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/uosserver
+      - status
+  register: unifi_os_server_status
+  changed_when: false
+  failed_when: false
+  when: unifi_os_server_cli.stat.exists
+
+- name: Check installed UniFi OS Server version
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/uosserver
+      - version
+  register: unifi_os_server_installed_version
+  changed_when: false
+  failed_when: false
+  when: unifi_os_server_cli.stat.exists
+
+- name: Reconcile install marker for healthy UniFi OS Server
+  ansible.builtin.file:
+    path: "{{ unifi_os_server_install_dir }}/.installed-{{ unifi_os_server_version }}"
+    state: touch
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - not unifi_os_server_install_marker.stat.exists
+    - unifi_os_server_status.rc | default(1) == 0
+    - unifi_os_server_installed_version.stdout | default('') | trim == unifi_os_server_version
+
+- name: Purge interrupted UniFi OS Server installation
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/uosserver-purge
+    stdin: "y\n"
+  when:
+    - not unifi_os_server_install_marker.stat.exists
+    - unifi_os_server_cli.stat.exists
+    - unifi_os_server_status.rc | default(1) != 0
+
+- name: Install UniFi OS Server
+  ansible.builtin.command:
+    argv:
+      - "{{ unifi_os_server_install_dir }}/unifi-os-server-{{ unifi_os_server_version }}"
+    creates: "{{ unifi_os_server_install_dir }}/.installed-{{ unifi_os_server_version }}"
+    stdin: "y\n"
+  environment:
+    PATH: "{{ unifi_os_server_installer_bin_dir }}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  notify: Mark UniFi OS Server version installed
+
+- name: Persist LXC-compatible ping group range
+  ansible.builtin.lineinfile:
+    path: /etc/sysctl.d/99-uosserver.conf
+    regexp: '^net\.ipv4\.ping_group_range\s*='
+    line: "net.ipv4.ping_group_range = {{ unifi_os_server_ping_group_range }}"
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Flush install marker handler
+  ansible.builtin.meta: flush_handlers
+
+- name: Allow UniFi TCP ports through firewall
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ unifi_os_server_tcp_ports }}"
+
+- name: Allow UniFi UDP ports through firewall
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: udp
+  loop: "{{ unifi_os_server_udp_ports }}"
+
+- name: Enable and start UniFi OS Server
+  ansible.builtin.systemd_service:
+    name: uosserver
+    enabled: true
+    state: started

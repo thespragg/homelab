@@ -1,0 +1,39 @@
+- name: Read UniFi container configuration
+  ansible.builtin.command:
+    argv:
+      - pct
+      - config
+      - "{{ proxmox_unifi_container_id }}"
+  register: proxmox_unifi_container_config
+  changed_when: false
+  check_mode: false
+
+- name: Enable nesting for UniFi container
+  ansible.builtin.command:
+    argv:
+      - pct
+      - set
+      - "{{ proxmox_unifi_container_id }}"
+      - -features
+      - nesting=1
+  when: "'nesting=1' not in proxmox_unifi_container_config.stdout"
+  register: proxmox_unifi_nesting
+
+- name: Pass TUN device through to UniFi container
+  ansible.builtin.command:
+    argv:
+      - pct
+      - set
+      - "{{ proxmox_unifi_container_id }}"
+      - -dev0
+      - path=/dev/net/tun,mode=0666
+  when: "'dev0: /dev/net/tun' not in proxmox_unifi_container_config.stdout"
+  register: proxmox_unifi_tun
+
+- name: Restart UniFi container after runtime configuration changes
+  ansible.builtin.command:
+    argv:
+      - pct
+      - reboot
+      - "{{ proxmox_unifi_container_id }}"
+  when: proxmox_unifi_nesting is changed or proxmox_unifi_tun is changed

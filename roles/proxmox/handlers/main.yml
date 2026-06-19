@@ -10,3 +10,8 @@
 
 - name: Apply network configuration
   command: ifreload -a
+
+- name: Apply subscription nag removal
+  ansible.builtin.command:
+    cmd: /usr/local/bin/pve-remove-nag.sh
+  changed_when: true

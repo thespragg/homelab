@@ -22,6 +22,7 @@ proxmox_allowed_vlans:
   - "901"
   - "902"
   - "999"
+proxmox_unifi_container_id: 202
 proxmox_management_cidr: 10.0.10.0/24
 proxmox_lan_cidr: 10.0.20.0/24
 proxmox_lan_gateway: 10.0.20.1
