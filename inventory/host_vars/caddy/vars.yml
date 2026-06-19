@@ -1,5 +1,8 @@
 caddy_acme_email: admin@thespragg.dev
 
 caddy_proxies:
+  - name: apollo
+    backend: "https://10.0.10.2:8006"
+    tls_insecure_skip_verify: true
   - name: grafana
     backend: "10.10.0.23:3000"

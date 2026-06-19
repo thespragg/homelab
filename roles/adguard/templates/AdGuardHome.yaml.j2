@@ -11,12 +11,16 @@ dns:
 {% for dns in adguard_bootstrap_dns %}
     - {{ dns }}
 {% endfor %}
+
+filtering:
 {% if adguard_rewrites %}
   rewrites:
 {% for rewrite in adguard_rewrites %}
     - domain: "{{ rewrite.domain }}"
       answer: "{{ rewrite.answer }}"
 {% endfor %}
+{% else %}
+  rewrites: []
 {% endif %}
 
 filters:

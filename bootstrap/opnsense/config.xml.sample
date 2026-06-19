@@ -31,6 +31,7 @@
     <ipv6allow>1</ipv6allow>
     <ssh>
       <enabled>enabled</enabled>
+      <permitrootlogin>1</permitrootlogin>
       <group>admins</group>
     </ssh>
   </system>

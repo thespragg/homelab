@@ -13,7 +13,8 @@ iface vmbr0 inet {{ 'static' if proxmox_migration_mode else 'manual' }}
         bridge-stp off
         bridge-fd 0
         bridge-vlan-aware yes
-        bridge-vids {{ proxmox_allowed_vlans | join(' ') }}{% if proxmox_migration_mode %} 1{% endif %}
+        bridge-vids {{ proxmox_allowed_vlans | join(' ') }}
+        bridge-pvid {{ '1' if proxmox_migration_mode else proxmox_native_vlan }}
 
 auto vmbr0.{{ proxmox_management_vlan }}
 iface vmbr0.{{ proxmox_management_vlan }} inet static

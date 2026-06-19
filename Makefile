@@ -16,6 +16,7 @@ opnsense-bootstrap-config: ## Render config.xml for the stock OPNsense importer
 	python3 scripts/render-opnsense-bootstrap.py \
 		bootstrap/opnsense/config.xml.sample build/opnsense/conf/config.xml \
 		--ssh-public-key "$${SSH_PUBLIC_KEY_PATH:-$$HOME/.ssh/id_ed25519.pub}"
+	@echo "Created build/opnsense/conf/config.xml"
 
 opnsense-config-disk: opnsense-bootstrap-config ## Build the FAT OPNsense importer disk (run on Linux)
 	sh scripts/create-opnsense-config-disk.sh

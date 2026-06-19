@@ -5,9 +5,9 @@ variable "proxmox_api_token" {
 }
 
 variable "proxmox_host" {
-  description = "Address used by Terraform and SSH to reach Apollo during bootstrap."
+  description = "Management address used by Terraform and SSH to reach Apollo."
   type        = string
-  default     = "apollo.internal.thespragg.dev"
+  default     = "10.0.10.2"
 }
 
 variable "opnsense_img_url" {

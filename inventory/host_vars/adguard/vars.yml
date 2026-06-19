@@ -1,7 +1,5 @@
-adguard_upstream_dns: "10.0.40.1:5335"
+adguard_upstream_dns: "1.1.1.1"
 
 adguard_rewrites:
-  - domain: "apollo.internal.thespragg.dev"
-    answer: "10.0.10.2"
   - domain: "*.internal.thespragg.dev"
     answer: "10.0.40.4"

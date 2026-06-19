@@ -10,7 +10,7 @@
     src: AdGuardHome.yaml.j2
     dest: "{{ adguard_install_dir }}/AdGuardHome.yaml"
     mode: '0600'
-    force: no
+  notify: Restart AdGuard Home
 
 - name: Place AdGuard Home systemd service
   template:

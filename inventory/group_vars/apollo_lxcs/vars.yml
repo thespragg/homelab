@@ -1,1 +1,1 @@
-ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o ProxyJump=root@apollo.internal.thespragg.dev'
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o ProxyJump=root@10.0.10.2'

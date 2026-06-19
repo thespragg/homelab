@@ -34,8 +34,8 @@ subinterfaces in OPNsense. Terraform fixes the NIC order and MAC addresses as:
 
 | OPNsense NIC | Purpose | VLAN | Address |
 |---|---|---:|---|
-| `vtnet0` | WAN1 | 901 | DHCP |
-| `vtnet1` | WAN2 | 902 | DHCP |
+| `vtnet0` | WAN1 | 901 | PPPoE/ISP configuration baked into image |
+| `vtnet1` | WAN2 | 902 | Reserved until adoption |
 | `vtnet2` | MGMT | 10 | `10.0.10.1/24` |
 | `vtnet3` | DEVICES | 20 | `10.0.20.1/24` |
 | `vtnet4` | IOT | 30 | `10.0.30.1/24` |

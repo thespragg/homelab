@@ -26,12 +26,12 @@ qemu-system-x86_64 \
   -m 4096 \
   -drive file=opnsense-installer.img,format=raw,if=virtio,readonly=on \
   -drive file=opnsense-apollo.img,format=raw,if=virtio \
-  -drive file=fat:build/opnsense,format=raw,if=virtio,readonly=on \
+  -drive file=fat:rw:build/opnsense,format=raw,if=virtio \
   -netdev user,id=net0,net=172.16.1.0/24 \
   -device virtio-net-pci,netdev=net0,mac=02:00:00:00:01:00 \
   -netdev user,id=net1,net=172.16.2.0/24 \
   -device virtio-net-pci,netdev=net1,mac=02:00:00:00:01:01 \
-  -netdev user,id=net2,net=10.0.10.0/24,host=10.0.10.254,hostfwd=tcp::8080-10.0.10.1:80 \
+  -netdev user,id=net2,net=10.0.10.0/24,host=10.0.10.2,hostfwd=tcp::8080-10.0.10.1:80,hostfwd=tcp::2222-10.0.10.1:22 \
   -device virtio-net-pci,netdev=net2,mac=02:00:00:00:00:10 \
   -netdev user,id=net3,net=10.0.20.0/24,host=10.0.20.254 \
   -device virtio-net-pci,netdev=net3,mac=02:00:00:00:00:20 \
@@ -61,7 +61,7 @@ qemu-system-x86_64 \
   -device virtio-net-pci,netdev=net0,mac=02:00:00:00:01:00 \
   -netdev user,id=net1,net=172.16.2.0/24 \
   -device virtio-net-pci,netdev=net1,mac=02:00:00:00:01:01 \
-  -netdev user,id=net2,net=10.0.10.0/24,host=10.0.10.254,hostfwd=tcp::8080-10.0.10.1:80 \
+  -netdev user,id=net2,net=10.0.10.0/24,host=10.0.10.2,hostfwd=tcp::8080-10.0.10.1:80,hostfwd=tcp::2222-10.0.10.1:22 \
   -device virtio-net-pci,netdev=net2,mac=02:00:00:00:00:10 \
   -netdev user,id=net3,net=10.0.20.0/24,host=10.0.20.254 \
   -device virtio-net-pci,netdev=net3,mac=02:00:00:00:00:20 \
@@ -88,24 +88,13 @@ Open `http://127.0.0.1:8080`, log in as `root` / `opnsense`, and:
 bzip2 -9 -k opnsense-apollo.img
 shasum -a 256 opnsense-apollo.img.bz2
 
-export AWS_ACCESS_KEY_ID='...'
-export AWS_SECRET_ACCESS_KEY='...'
-export AWS_DEFAULT_REGION='auto'
-export R2_ENDPOINT='https://ACCOUNT_ID.r2.cloudflarestorage.com'
-export R2_BUCKET='YOUR_BUCKET'
-
-aws s3 cp opnsense-apollo.img.bz2 \
-  "s3://${R2_BUCKET}/opnsense/opnsense-apollo.img.bz2" \
-  --endpoint-url "$R2_ENDPOINT"
-
-aws s3 presign \
-  "s3://${R2_BUCKET}/opnsense/opnsense-apollo.img.bz2" \
-  --endpoint-url "$R2_ENDPOINT" \
-  --expires-in 604800
+/usr/local/bin/aws s3 cp opnsense-apollo.img.bz2 \
+  s3://opnsense/opnsense.img.bz2 \
+  --profile r2 \
+  --endpoint-url https://c1023396fac1dd631cd7845a56aa1730.r2.cloudflarestorage.com
 ```
 
-Put the returned presigned URL and the `shasum` output in
-`terraform/apollo/terraform.tfvars` as `opnsense_img_url` and
-`opnsense_img_sha256`. Keep the bucket private: the image contains password hashes
-and API authentication material. Regenerate the URL before rebuilding VM 100 if
-the seven-day URL has expired.
+The AWS CLI automatically uses multipart upload for images over Wrangler's
+300 MiB limit. This overwrites the existing object, so the current R2 URL remains
+unchanged. Put the new `shasum` value in `terraform/apollo/terraform.tfvars` as
+`opnsense_img_sha256`.

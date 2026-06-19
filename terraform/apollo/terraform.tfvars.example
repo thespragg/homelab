@@ -2,8 +2,7 @@
 # terraform.tfvars is gitignored
 
 proxmox_api_token = "terraform@pve!terraform=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-# When running directly on Apollo, use its currently reachable address.
-# proxmox_host = "192.168.0.94"
+# proxmox_host = "10.0.10.2"
 
 # Public or presigned URL to the installed OPNsense image in R2
 opnsense_img_url = ""

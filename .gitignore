@@ -3,3 +3,7 @@
 .DS_Store
 bootstrap/opnsense/config.xml
 build/
+*.img
+*.img.bz2
+OPNsense-*.img.bz2
+terraform/**/tfplan

@@ -3,7 +3,7 @@ proxmox_domain: internal.thespragg.dev
 proxmox_nic: nic0
 
 # Network
-proxmox_migration_mode: true
+proxmox_migration_mode: false
 proxmox_legacy_management_ip: 192.168.0.94/24
 proxmox_legacy_management_gateway: 192.168.0.1
 proxmox_management_ip: 10.0.10.2/24
@@ -121,13 +121,6 @@ opnsense_network_rules:
     source: 10.0.40.4
     destination: 10.0.0.0/8
     protocol: TCP
-  - description: Allow AdGuard to Unbound
-    action: pass
-    interface: opt4
-    source: 10.0.40.3
-    destination: 10.0.40.1
-    protocol: TCP/UDP
-    destination_port: "5335"
   - description: Isolate homelab from internal networks
     action: block
     interface: opt4
