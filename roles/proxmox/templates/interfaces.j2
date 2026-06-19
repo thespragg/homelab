@@ -4,24 +4,18 @@ iface lo inet loopback
 iface {{ proxmox_nic }} inet manual
 
 auto vmbr0
-iface vmbr0 inet {{ 'static' if proxmox_migration_mode else 'manual' }}
-{% if proxmox_migration_mode %}
-        address {{ proxmox_legacy_management_ip }}
-        gateway {{ proxmox_legacy_management_gateway }}
-{% endif %}
+iface vmbr0 inet manual
         bridge-ports {{ proxmox_nic }}
         bridge-stp off
         bridge-fd 0
         bridge-vlan-aware yes
         bridge-vids {{ proxmox_allowed_vlans | join(' ') }}
-        bridge-pvid {{ '1' if proxmox_migration_mode else proxmox_native_vlan }}
+        bridge-pvid {{ proxmox_native_vlan }}
 
 auto vmbr0.{{ proxmox_management_vlan }}
 iface vmbr0.{{ proxmox_management_vlan }} inet static
         address {{ proxmox_management_ip }}
-{% if not proxmox_migration_mode %}
         gateway {{ proxmox_management_gateway }}
-{% endif %}
         vlan-raw-device vmbr0
 
 # VLAN {{ proxmox_management_vlan }} - infrastructure management ({{ proxmox_management_cidr }})

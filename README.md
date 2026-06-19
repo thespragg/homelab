@@ -67,9 +67,7 @@ cd terraform/apollo && terraform apply
 
 `http://10.0.10.1` from the management VLAN, or `http://10.0.20.1` from LAN.
 
-## Bootstrap (fresh install)
-
-Configure the switch before moving Apollo's management address:
+## Network layout
 
 | Switch port | Mode | Native/PVID | Tagged VLANs |
 |---|---|---:|---|
@@ -79,28 +77,7 @@ Configure the switch before moving Apollo's management address:
 | Future WAN2 | Access | 902 | None; leave disconnected |
 
 VLAN 999 is an unused native VLAN. It must not have an address or DHCP server.
-Connect a laptop to a VLAN 10 access port with a temporary `10.0.10.x/24`
-address for the management cutover. Apollo will move to `10.0.10.2` and
-OPNsense MGMT is `10.0.10.1`.
-
-```bash
-ansible-playbook playbooks/proxmox.yml
-cd terraform/apollo && terraform apply
-```
-
-## Network Cutover
-
-1. Configure the Sodola ports using the table above. Do not connect WAN2.
-2. Build and upload the installed OPNsense image using the instructions above.
-3. Run `ansible-playbook playbooks/proxmox.yml` from the workstation while you
-   have local Proxmox console access. The SSH session will drop when management
-   moves to VLAN 10; use the console if the network reload needs intervention.
-4. Verify `https://10.0.10.2:8006` from the temporary VLAN 10 laptop connection.
-5. Run `terraform -chdir=terraform/apollo apply`, then `make apollo-ansible`.
-6. Move the laptop back to trusted LAN/DHCP and verify that
-   `https://10.0.10.2:8006` routes through OPNsense.
-7. Connect WAN1 and configure its ISP settings. Keep WAN2 disabled until its
-   switch port and upstream circuit are available.
+Apollo's management address is `10.0.10.2`; OPNsense MGMT is `10.0.10.1`.
 
 ## Vault
 
