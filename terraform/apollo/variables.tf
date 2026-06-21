@@ -57,6 +57,12 @@ variable "homelab_vlan_id" {
   default     = 40
 }
 
+variable "guest_vlan_id" {
+  description = "VLAN ID for untrusted guest clients."
+  type        = number
+  default     = 50
+}
+
 variable "wan1_vlan_id" {
   description = "VLAN ID for the active WAN connection."
   type        = number

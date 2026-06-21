@@ -1,0 +1,155 @@
+- name: Validate PPSK network references
+  ansible.builtin.assert:
+    that:
+      - >-
+        (unifi_networks_response.json.data |
+         selectattr('name', 'equalto', item.network) |
+         list |
+         length) == 1
+    fail_msg: "PPSK network {{ item.network }} does not exist uniquely in UniFi."
+  loop: "{{ unifi_wifi_ppsks }}"
+  loop_control:
+    label: "{{ item.network }}"
+  no_log: true
+
+- name: Initialize UniFi PPSK mappings
+  ansible.builtin.set_fact:
+    unifi_wifi_preshared_keys: []
+
+- name: Build UniFi PPSK mappings
+  ansible.builtin.set_fact:
+    unifi_wifi_preshared_keys: >-
+      {{
+        unifi_wifi_preshared_keys +
+        [{
+          'network': {
+            'type': 'SPECIFIC',
+            'networkId': (
+              unifi_networks_response.json.data |
+              selectattr('name', 'equalto', item.network) |
+              map(attribute='id') |
+              first
+            )
+          },
+          'passphrase': item.passphrase
+        }]
+      }}
+  loop: "{{ unifi_wifi_ppsks }}"
+  no_log: true
+
+- name: Set desired UniFi Wi-Fi configuration
+  ansible.builtin.set_fact:
+    unifi_wifi_body:
+      type: STANDARD
+      name: "{{ unifi_wifi_name }}"
+      enabled: true
+      securityConfiguration:
+        type: WPA2_PERSONAL
+        presharedKeys: "{{ unifi_wifi_preshared_keys }}"
+        pmfMode: OPTIONAL
+        fastRoamingEnabled: false
+      multicastToUnicastConversionEnabled: true
+      clientIsolationEnabled: false
+      hideName: false
+      uapsdEnabled: true
+      broadcastingFrequenciesGHz:
+        - 2.4
+        - 5
+      arpProxyEnabled: false
+      bssTransitionEnabled: true
+      advertiseDeviceName: false
+      bandSteeringEnabled: true
+  no_log: true
+
+- name: Read UniFi Wi-Fi broadcasts
+  ansible.builtin.uri:
+    url: "{{ unifi_network_api_url }}/sites/{{ unifi_network_site.id }}/wifi/broadcasts?limit=200"
+    method: GET
+    headers:
+      X-API-KEY: "{{ unifi_network_api_key }}"
+    validate_certs: "{{ unifi_network_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: unifi_wifi_response
+  check_mode: false
+  no_log: true
+
+- name: Find managed UniFi Wi-Fi broadcast
+  ansible.builtin.set_fact:
+    unifi_current_wifi: >-
+      {{
+        (unifi_wifi_response.json.data |
+         selectattr('name', 'equalto', unifi_wifi_name) |
+         list |
+         first) |
+        default({}, true)
+      }}
+  no_log: true
+
+- name: Read managed UniFi Wi-Fi details
+  ansible.builtin.uri:
+    url: >-
+      {{ unifi_network_api_url }}/sites/{{ unifi_network_site.id }}/wifi/broadcasts/{{ unifi_current_wifi.id }}
+    method: GET
+    headers:
+      X-API-KEY: "{{ unifi_network_api_key }}"
+    validate_certs: "{{ unifi_network_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: unifi_current_wifi_details
+  when: unifi_current_wifi.id is defined
+  check_mode: false
+  no_log: true
+
+- name: Create password-routed UniFi Wi-Fi
+  ansible.builtin.uri:
+    url: "{{ unifi_network_api_url }}/sites/{{ unifi_network_site.id }}/wifi/broadcasts"
+    method: POST
+    headers:
+      X-API-KEY: "{{ unifi_network_api_key }}"
+    validate_certs: "{{ unifi_network_validate_certs }}"
+    body_format: json
+    body: "{{ unifi_wifi_body }}"
+    status_code:
+      - 201
+      - 400
+  register: unifi_wifi_create_response
+  when:
+    - unifi_current_wifi.id is not defined
+    - not ansible_check_mode
+  no_log: true
+
+- name: Report UniFi Wi-Fi validation error
+  ansible.builtin.fail:
+    msg: >-
+      UniFi rejected the Wi-Fi configuration:
+      code={{ unifi_wifi_create_response.json.code | default('unknown') }},
+      message={{ unifi_wifi_create_response.json.message | default('unknown') }},
+      errors={{ unifi_wifi_create_response.json.errors | default([]) | to_json }}
+  when:
+    - unifi_wifi_create_response is not skipped
+    - unifi_wifi_create_response.status | default(0) == 400
+
+- name: Update password-routed UniFi Wi-Fi
+  ansible.builtin.uri:
+    url: >-
+      {{ unifi_network_api_url }}/sites/{{ unifi_network_site.id }}/wifi/broadcasts/{{ unifi_current_wifi.id }}
+    method: PUT
+    headers:
+      X-API-KEY: "{{ unifi_network_api_key }}"
+    validate_certs: "{{ unifi_network_validate_certs }}"
+    body_format: json
+    body: "{{ unifi_wifi_body }}"
+    status_code: 200
+  when:
+    - unifi_current_wifi.id is defined
+    - >-
+      unifi_current_wifi_details.json.name != unifi_wifi_body.name or
+      not unifi_current_wifi_details.json.enabled or
+      unifi_current_wifi_details.json.securityConfiguration.type != 'WPA2_PERSONAL' or
+      (unifi_current_wifi_details.json.securityConfiguration.presharedKeys | default([])) !=
+      unifi_wifi_preshared_keys or
+      unifi_current_wifi_details.json.broadcastingFrequenciesGHz != unifi_wifi_body.broadcastingFrequenciesGHz or
+      unifi_current_wifi_details.json.clientIsolationEnabled != unifi_wifi_body.clientIsolationEnabled
+    - not ansible_check_mode
+  no_log: true

@@ -22,6 +22,7 @@ iface vmbr0.{{ proxmox_management_vlan }} inet static
 # VLAN {{ proxmox_lan_vlan }} - LAN ({{ proxmox_lan_cidr }})
 # VLAN {{ proxmox_iot_vlan }} - IoT
 # VLAN {{ proxmox_homelab_vlan }} - homelab services
+# VLAN {{ proxmox_guest_vlan }} - untrusted guests
 # VLAN {{ proxmox_wan1_vlan }} - WAN1
 # VLAN {{ proxmox_wan2_vlan }} - WAN2 (reserved/disconnected)
 # VLAN {{ proxmox_native_vlan }} - unused native VLAN

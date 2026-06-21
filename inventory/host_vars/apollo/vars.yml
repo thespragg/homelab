@@ -11,6 +11,7 @@ proxmox_management_vlan: 10
 proxmox_lan_vlan: 20
 proxmox_iot_vlan: 30
 proxmox_homelab_vlan: 40
+proxmox_guest_vlan: 50
 proxmox_wan1_vlan: 901
 proxmox_wan2_vlan: 902
 proxmox_native_vlan: 999
@@ -19,6 +20,7 @@ proxmox_allowed_vlans:
   - "20"
   - "30"
   - "40"
+  - "50"
   - "901"
   - "902"
   - "999"
@@ -31,6 +33,9 @@ proxmox_lan_gateway: 10.0.20.1
 opnsense_api_url: "http://10.0.10.1"
 opnsense_api_key: "{{ vault_opnsense_api_key }}"
 opnsense_api_secret: "{{ vault_opnsense_api_secret }}"
+opnsense_pppoe_username: "{{ vault_opnsense_pppoe_username }}"
+opnsense_pppoe_password: "{{ vault_opnsense_pppoe_password }}"
+opnsense_pppoe_description: BT_FTTP
 
 opnsense_wan1_interface: vtnet0
 opnsense_wan2_interface: vtnet1
@@ -38,6 +43,7 @@ opnsense_management_interface: vtnet2
 opnsense_lan_interface: vtnet3
 opnsense_iot_interface: vtnet4
 opnsense_homelab_interface: vtnet5
+opnsense_guest_interface: vtnet6
 opnsense_management_ip: 10.0.10.1
 opnsense_lan_ip: 10.0.20.1
 opnsense_lan_cidr: 10.0.20.0/24
@@ -45,10 +51,12 @@ opnsense_iot_ip: 10.0.30.1
 opnsense_iot_cidr: 10.0.30.0/24
 opnsense_homelab_ip: 10.0.40.1
 opnsense_homelab_cidr: 10.0.40.0/24
+opnsense_guest_ip: 10.0.50.1
+opnsense_guest_cidr: 10.0.50.0/24
 
 opnsense_unbound_port: 5335
 
-opnsense_dhcp_interfaces: "lan,opt3,opt4"
+opnsense_dhcp_interfaces: "lan,opt3,opt4,opt5"
 opnsense_dhcp_dns: 10.0.40.3  # AdGuard
 opnsense_dhcp_subnets:
   - description: Devices
@@ -66,6 +74,11 @@ opnsense_dhcp_subnets:
     gateway: 10.0.40.1
     range_start: 10.0.40.100
     range_end: 10.0.40.200
+  - description: Guest
+    subnet: 10.0.50.0/24
+    gateway: 10.0.50.1
+    range_start: 10.0.50.100
+    range_end: 10.0.50.200
 
 opnsense_management_rules:
   - description: Allow trusted LAN SSH to Proxmox
@@ -129,6 +142,25 @@ opnsense_network_rules:
     action: pass
     interface: opt4
     source: 10.0.40.0/24
+    destination: any
+    protocol: any
+  - description: Allow guest DNS to AdGuard
+    action: pass
+    interface: opt5
+    source: 10.0.50.0/24
+    destination: 10.0.40.3
+    protocol: TCP/UDP
+    destination_port: "53"
+  - description: Isolate guests from internal networks
+    action: block
+    interface: opt5
+    source: 10.0.50.0/24
+    destination: 10.0.0.0/8
+    protocol: any
+  - description: Allow guest internet access
+    action: pass
+    interface: opt5
+    source: 10.0.50.0/24
     destination: any
     protocol: any
 

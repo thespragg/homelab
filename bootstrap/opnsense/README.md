@@ -15,9 +15,11 @@ qemu-img create -f raw opnsense-apollo.img 16G
 make opnsense-bootstrap-config
 ```
 
-The generated `build/opnsense/conf/config.xml` supplies the six interface
-assignments, addresses, initial firewall access, root SSH key, and offloading
-settings. QEMU exposes that directory to the importer as a virtual FAT disk.
+The generated `build/opnsense/conf/config.xml` supplies the seven interface
+assignments, WAN1 PPPoE configuration, addresses, initial firewall access, root
+SSH key, and offloading settings. PPPoE credentials are read from Apollo's
+encrypted Ansible vault. QEMU exposes that directory to the importer as a
+virtual FAT disk.
 
 ## Install
 
@@ -39,6 +41,8 @@ qemu-system-x86_64 \
   -device virtio-net-pci,netdev=net4,mac=02:00:00:00:00:30 \
   -netdev user,id=net5,net=10.0.40.0/24,host=10.0.40.254 \
   -device virtio-net-pci,netdev=net5,mac=02:00:00:00:00:40 \
+  -netdev user,id=net6,net=10.0.50.0/24,host=10.0.50.254 \
+  -device virtio-net-pci,netdev=net6,mac=02:00:00:00:00:50 \
   -nographic
 ```
 
@@ -51,7 +55,7 @@ When installation completes, power off instead of starting another installation.
 
 ## Configure and verify
 
-Boot only the installed disk, retaining the six NICs from the previous command:
+Boot only the installed disk, retaining the seven NICs from the previous command:
 
 ```bash
 qemu-system-x86_64 \
@@ -69,6 +73,8 @@ qemu-system-x86_64 \
   -device virtio-net-pci,netdev=net4,mac=02:00:00:00:00:30 \
   -netdev user,id=net5,net=10.0.40.0/24,host=10.0.40.254 \
   -device virtio-net-pci,netdev=net5,mac=02:00:00:00:00:40 \
+  -netdev user,id=net6,net=10.0.50.0/24,host=10.0.50.254 \
+  -device virtio-net-pci,netdev=net6,mac=02:00:00:00:00:50 \
   -nographic
 ```
 
@@ -78,9 +84,10 @@ Open `http://127.0.0.1:8080`, log in as `root` / `opnsense`, and:
 2. Create an API key under **System > Access > Users > root**.
 3. Put the key and secret in `inventory/host_vars/apollo/vault.yml` as
    `vault_opnsense_api_key` and `vault_opnsense_api_secret`.
-4. Confirm interfaces are `vtnet0` through `vtnet5` in the documented order.
-5. Confirm checksum, TSO and LRO offloading are disabled.
-6. Shut down cleanly from the console.
+4. Confirm interfaces are `vtnet0` through `vtnet6` in the documented order.
+5. Confirm WAN1 uses PPPoE over `vtnet0` and has internet connectivity.
+6. Confirm checksum, TSO and LRO offloading are disabled.
+7. Shut down cleanly from the console.
 
 ## Compress and upload
 

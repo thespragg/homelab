@@ -12,6 +12,9 @@
 	handle @{{ proxy.name }} {
 	{% if proxy.tls_insecure_skip_verify | default(false) %}
 		reverse_proxy {{ proxy.backend }} {
+	{% if proxy.preserve_host | default(false) %}
+			header_up Host {hostport}
+	{% endif %}
 			transport http {
 				tls_insecure_skip_verify
 			}

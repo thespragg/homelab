@@ -14,6 +14,7 @@ opnsense_img_sha256 = ""
 # lan_vlan_id             = 20
 # iot_vlan_id             = 30
 # homelab_vlan_id         = 40
+# guest_vlan_id           = 50
 # wan1_vlan_id            = 901
 # wan2_vlan_id            = 902
 # debian_lxc_template_url = "http://download.proxmox.com/images/system/debian-12-standard_12.7-1_amd64.tar.zst"

@@ -1,0 +1,74 @@
+- name: Validate UniFi Network API configuration
+  ansible.builtin.assert:
+    that:
+      - unifi_network_api_key | length > 0
+      - unifi_networks | length > 0
+      - unifi_wifi_name | length > 0
+      - unifi_wifi_ppsks | length > 0
+      - unifi_wifi_ppsks | map(attribute='passphrase') | map('length') | min >= 8
+      - unifi_wifi_ppsks | map(attribute='passphrase') | map('length') | max <= 63
+    fail_msg: >-
+      Set the UniFi integration API key and 8-63 character PPSK passwords in
+      inventory/host_vars/unifi/vault.yml.
+  no_log: true
+
+- name: Wait for UniFi Network API
+  ansible.builtin.uri:
+    url: "{{ unifi_network_api_url }}/info"
+    method: GET
+    headers:
+      X-API-KEY: "{{ unifi_network_api_key }}"
+    validate_certs: "{{ unifi_network_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: unifi_network_api_info
+  until: unifi_network_api_info is succeeded
+  retries: 30
+  delay: 10
+  check_mode: false
+  no_log: true
+
+- name: Read UniFi sites
+  ansible.builtin.uri:
+    url: "{{ unifi_network_api_url }}/sites?limit=100"
+    method: GET
+    headers:
+      X-API-KEY: "{{ unifi_network_api_key }}"
+    validate_certs: "{{ unifi_network_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: unifi_sites_response
+  check_mode: false
+  no_log: true
+
+- name: Select UniFi site
+  ansible.builtin.set_fact:
+    unifi_network_site: >-
+      {{
+        (unifi_sites_response.json.data |
+         selectattr('name', 'equalto', unifi_network_site_name) |
+         list |
+         first) |
+        default(
+          (unifi_sites_response.json.data | first)
+          if (unifi_sites_response.json.data | length == 1)
+          else none,
+          true
+        )
+      }}
+
+- name: Validate selected UniFi site
+  ansible.builtin.assert:
+    that:
+      - unifi_network_site is mapping
+      - unifi_network_site.id is defined
+    fail_msg: >-
+      No unique UniFi site named {{ unifi_network_site_name }} was found.
+      Set unifi_network_site_name to one of the names returned by the controller.
+
+- name: Reconcile UniFi networks
+  ansible.builtin.include_tasks: networks.yml
+
+- name: Reconcile UniFi Wi-Fi
+  ansible.builtin.include_tasks: wifi.yml
+

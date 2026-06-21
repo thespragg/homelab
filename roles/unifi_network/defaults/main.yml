@@ -1,0 +1,8 @@
+unifi_network_api_url: https://127.0.0.1:11443/proxy/network/integration/v1
+unifi_network_api_key: ""
+unifi_network_validate_certs: false
+unifi_network_site_name: Default
+unifi_networks: []
+unifi_wifi_name: ""
+unifi_wifi_ppsks: []
+

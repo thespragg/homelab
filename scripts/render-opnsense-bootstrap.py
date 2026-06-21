@@ -8,12 +8,13 @@ import xml.etree.ElementTree as ET
 
 
 INTERFACES = {
-    "wan": ("WAN1", "vtnet0", "dhcp", None),
+    "wan": ("WAN1", "pppoe0", "pppoe", None),
     "opt1": ("WAN2", "vtnet1", "dhcp", None),
     "opt2": ("MGMT", "vtnet2", "10.0.10.1", "24"),
     "lan": ("DEVICES", "vtnet3", "10.0.20.1", "24"),
     "opt3": ("IOT", "vtnet4", "10.0.30.1", "24"),
     "opt4": ("HOMELAB", "vtnet5", "10.0.40.1", "24"),
+    "opt5": ("GUEST", "vtnet6", "10.0.50.1", "24"),
 }
 
 
@@ -47,6 +48,33 @@ def configure_interface(
     set_text(interface, "ipaddr", address)
     if subnet:
         set_text(interface, "subnet", subnet)
+
+
+def configure_pppoe(
+    root: ET.Element,
+    device: str,
+    username: str,
+    password: str,
+    description: str,
+) -> None:
+    ppps = root.find("ppps")
+    if ppps is None:
+        ppps = ET.SubElement(root, "ppps")
+    for existing in ppps.findall("ppp"):
+        ppps.remove(existing)
+
+    ppp = ET.SubElement(ppps, "ppp")
+    set_text(ppp, "ptpid", "0")
+    set_text(ppp, "type", "pppoe")
+    set_text(ppp, "if", "pppoe0")
+    set_text(ppp, "ports", device)
+    set_text(ppp, "username", username)
+    set_text(
+        ppp,
+        "password",
+        base64.b64encode(password.encode("utf-8")).decode("ascii"),
+    )
+    set_text(ppp, "descr", description)
 
 
 def add_bootstrap_rule(
@@ -96,6 +124,9 @@ def main() -> None:
         default=Path("~/.ssh/id_ed25519.pub"),
         help="Public key authorized for the temporary root SSH login",
     )
+    parser.add_argument("--pppoe-username", required=True)
+    parser.add_argument("--pppoe-password", required=True)
+    parser.add_argument("--pppoe-description", default="WAN1_PPPoE")
     args = parser.parse_args()
 
     tree = ET.parse(args.source)
@@ -108,6 +139,13 @@ def main() -> None:
         interfaces = ET.SubElement(root, "interfaces")
     for name, values in INTERFACES.items():
         configure_interface(interfaces, name, *values)
+    configure_pppoe(
+        root,
+        "vtnet0",
+        args.pppoe_username,
+        args.pppoe_password,
+        args.pppoe_description,
+    )
 
     system = root.find("system")
     if system is None:

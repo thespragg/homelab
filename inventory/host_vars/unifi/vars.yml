@@ -1,3 +1,29 @@
 unifi_os_server_version: "5.0.8"
 unifi_os_server_installer_url: >-
   https://fw-download.ubnt.com/data/unifi-os-server/c2e4-linux-x64-5.0.8-bcb62759-753a-4be2-8546-a6e0de63e59a.8-x64
+
+unifi_network_api_key: "{{ vault_unifi_network_api_key | default('') }}"
+unifi_network_site_name: Default
+
+# OPNsense routes these networks, so UniFi manages them as third-party gateway VLANs.
+unifi_networks:
+  - name: Management
+    vlan_id: 10
+  - name: Devices
+    vlan_id: 20
+  - name: IoT
+    vlan_id: 30
+  - name: Homelab
+    vlan_id: 40
+  - name: Guest
+    vlan_id: 50
+
+# WPA2 is required by UniFi PPSK. The password selects the client VLAN.
+unifi_wifi_name: thespragg
+unifi_wifi_ppsks:
+  - network: Devices
+    passphrase: "{{ vault_unifi_devices_wifi_password | default('') }}"
+  - network: IoT
+    passphrase: "{{ vault_unifi_iot_wifi_password | default('') }}"
+  - network: Guest
+    passphrase: "{{ vault_unifi_guest_wifi_password | default('') }}"

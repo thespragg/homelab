@@ -62,6 +62,14 @@ resource "proxmox_virtual_environment_vm" "opnsense" {
     vlan_id     = var.homelab_vlan_id
   }
 
+  # vtnet6: untrusted guests
+  network_device {
+    bridge      = "vmbr0"
+    mac_address = "02:00:00:00:00:50"
+    model       = "virtio"
+    vlan_id     = var.guest_vlan_id
+  }
+
   on_boot         = true
   started         = true
   stop_on_destroy = true
