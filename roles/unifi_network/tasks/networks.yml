@@ -1,0 +1,33 @@
+- name: Read UniFi networks
+  ansible.builtin.uri:
+    url: "{{ unifi_network_api_url }}/sites/{{ unifi_network_site.id }}/networks?limit=200"
+    method: GET
+    headers:
+      X-API-KEY: "{{ unifi_network_api_key }}"
+    validate_certs: "{{ unifi_network_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: unifi_networks_response
+  check_mode: false
+  no_log: true
+
+- name: Reconcile UniFi network
+  ansible.builtin.include_tasks: network.yml
+  loop: "{{ unifi_networks }}"
+  loop_control:
+    loop_var: unifi_desired_network
+    label: "{{ unifi_desired_network.name }}"
+
+- name: Refresh UniFi networks
+  ansible.builtin.uri:
+    url: "{{ unifi_network_api_url }}/sites/{{ unifi_network_site.id }}/networks?limit=200"
+    method: GET
+    headers:
+      X-API-KEY: "{{ unifi_network_api_key }}"
+    validate_certs: "{{ unifi_network_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: unifi_networks_response
+  check_mode: false
+  no_log: true
+

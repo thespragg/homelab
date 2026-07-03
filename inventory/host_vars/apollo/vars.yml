@@ -2,16 +2,171 @@ proxmox_hostname: apollo
 proxmox_domain: internal.thespragg.dev
 proxmox_nic: nic0
 
-# Network - management (current, pre-cutover)
-proxmox_management_ip: 192.168.0.94/24
-proxmox_management_gateway: 192.168.0.1
+# Network
+proxmox_management_ip: 10.0.10.2/24
+proxmox_management_gateway: 10.0.10.1
 
-# Network - post-cutover (update these before running after WAN cutover)
-# proxmox_management_ip: 10.0.20.2/24
-# proxmox_management_gateway: 10.0.20.1
-
-# VLANs
-proxmox_wan_vlan: 10
+# VLANs. VLAN 999 is deliberately unused so untagged trunk traffic goes nowhere.
+proxmox_management_vlan: 10
 proxmox_lan_vlan: 20
+proxmox_iot_vlan: 30
+proxmox_homelab_vlan: 40
+proxmox_guest_vlan: 50
+proxmox_wan1_vlan: 901
+proxmox_wan2_vlan: 902
+proxmox_native_vlan: 999
+proxmox_allowed_vlans:
+  - "10"
+  - "20"
+  - "30"
+  - "40"
+  - "50"
+  - "901"
+  - "902"
+  - "999"
+proxmox_unifi_container_id: 202
+proxmox_management_cidr: 10.0.10.0/24
 proxmox_lan_cidr: 10.0.20.0/24
 proxmox_lan_gateway: 10.0.20.1
+
+# OPNsense — API calls are made from this host to the OPNsense VM
+opnsense_api_url: "http://10.0.10.1"
+opnsense_api_key: "{{ vault_opnsense_api_key }}"
+opnsense_api_secret: "{{ vault_opnsense_api_secret }}"
+opnsense_pppoe_username: "{{ vault_opnsense_pppoe_username }}"
+opnsense_pppoe_password: "{{ vault_opnsense_pppoe_password }}"
+opnsense_pppoe_description: BT_FTTP
+
+opnsense_wan1_interface: vtnet0
+opnsense_wan2_interface: vtnet1
+opnsense_management_interface: vtnet2
+opnsense_lan_interface: vtnet3
+opnsense_iot_interface: vtnet4
+opnsense_homelab_interface: vtnet5
+opnsense_guest_interface: vtnet6
+opnsense_management_ip: 10.0.10.1
+opnsense_lan_ip: 10.0.20.1
+opnsense_lan_cidr: 10.0.20.0/24
+opnsense_iot_ip: 10.0.30.1
+opnsense_iot_cidr: 10.0.30.0/24
+opnsense_homelab_ip: 10.0.40.1
+opnsense_homelab_cidr: 10.0.40.0/24
+opnsense_guest_ip: 10.0.50.1
+opnsense_guest_cidr: 10.0.50.0/24
+
+opnsense_unbound_port: 5335
+
+opnsense_dhcp_interfaces: "lan,opt3,opt4,opt5"
+opnsense_dhcp_dns: 10.0.40.3  # AdGuard
+opnsense_dhcp_subnets:
+  - description: Devices
+    subnet: 10.0.20.0/24
+    gateway: 10.0.20.1
+    range_start: 10.0.20.100
+    range_end: 10.0.20.200
+  - description: IoT
+    subnet: 10.0.30.0/24
+    gateway: 10.0.30.1
+    range_start: 10.0.30.100
+    range_end: 10.0.30.200
+  - description: Homelab
+    subnet: 10.0.40.0/24
+    gateway: 10.0.40.1
+    range_start: 10.0.40.100
+    range_end: 10.0.40.200
+  - description: Guest
+    subnet: 10.0.50.0/24
+    gateway: 10.0.50.1
+    range_start: 10.0.50.100
+    range_end: 10.0.50.200
+
+opnsense_management_rules:
+  - description: Allow trusted LAN SSH to Proxmox
+    interface: lan
+    source: 10.0.20.0/24
+    destination: 10.0.10.2
+    destination_port: "22"
+  - description: Allow trusted LAN HTTPS to Proxmox
+    interface: lan
+    source: 10.0.20.0/24
+    destination: 10.0.10.2
+    destination_port: "8006"
+
+# Rules are evaluated in this order. OPNsense's implicit block handles anything
+# not explicitly permitted here.
+opnsense_network_rules:
+  - description: Allow management everywhere
+    action: pass
+    interface: opt2
+    source: 10.0.10.0/24
+    destination: any
+    protocol: any
+  - description: Allow devices everywhere
+    action: pass
+    interface: lan
+    source: 10.0.20.0/24
+    destination: any
+    protocol: any
+  - description: Allow IoT DNS to AdGuard
+    action: pass
+    interface: opt3
+    source: 10.0.30.0/24
+    destination: 10.0.40.3
+    protocol: TCP/UDP
+    destination_port: "53"
+  - description: Isolate IoT from internal networks
+    action: block
+    interface: opt3
+    source: 10.0.30.0/24
+    destination: 10.0.0.0/8
+    protocol: any
+  - description: Allow IoT internet access
+    action: pass
+    interface: opt3
+    source: 10.0.30.0/24
+    destination: any
+    protocol: any
+  - description: Allow Caddy to internal backends
+    action: pass
+    interface: opt4
+    source: 10.0.40.4
+    destination: 10.0.0.0/8
+    protocol: TCP
+  - description: Isolate homelab from internal networks
+    action: block
+    interface: opt4
+    source: 10.0.40.0/24
+    destination: 10.0.0.0/8
+    protocol: any
+  - description: Allow homelab internet access
+    action: pass
+    interface: opt4
+    source: 10.0.40.0/24
+    destination: any
+    protocol: any
+  - description: Allow guest DNS to AdGuard
+    action: pass
+    interface: opt5
+    source: 10.0.50.0/24
+    destination: 10.0.40.3
+    protocol: TCP/UDP
+    destination_port: "53"
+  - description: Isolate guests from internal networks
+    action: block
+    interface: opt5
+    source: 10.0.50.0/24
+    destination: 10.0.0.0/8
+    protocol: any
+  - description: Allow guest internet access
+    action: pass
+    interface: opt5
+    source: 10.0.50.0/24
+    destination: any
+    protocol: any
+
+opnsense_host_overrides:
+  - host: ""
+    domain: internal.thespragg.dev
+    ip: 10.0.40.4  # Caddy
+
+opnsense_dns_entries: []

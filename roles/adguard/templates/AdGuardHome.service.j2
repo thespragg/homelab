@@ -1,0 +1,15 @@
+[Unit]
+Description=AdGuard Home: Network-level blocker
+After=syslog.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory={{ adguard_install_dir }}
+ExecStart={{ adguard_install_dir }}/AdGuardHome --config {{ adguard_install_dir }}/AdGuardHome.yaml --work-dir {{ adguard_install_dir }}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

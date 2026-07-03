@@ -1,0 +1,23 @@
+unifi_os_server_version: "5.0.8"
+unifi_os_server_installer_url: ""
+unifi_os_server_install_dir: /usr/local/src/unifi-os-server
+unifi_os_server_installer_bin_dir: /usr/local/lib/unifi-os-server-installer
+unifi_os_server_ping_group_range: "0 65535"
+
+unifi_os_server_tcp_ports:
+  - "443"
+  - "5671"
+  - "6789"
+  - "8080"
+  - "8443"
+  - "8444"
+  - "8843"
+  - "8880:8882"
+  - "11443"
+
+unifi_os_server_udp_ports:
+  - "1900"
+  - "3478"
+  - "5514"
+  - "10001"
+  - "10101"

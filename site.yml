@@ -1,5 +1,2 @@
-- import_playbook: playbooks/proxmox.yml
-- import_playbook: playbooks/osrs-clan-bot.yml
-- import_playbook: playbooks/postgres.yml
-- import_playbook: playbooks/monitoring.yml
-- import_playbook: playbooks/caddy.yml
+- import_playbook: playbooks/apollo.yml
+- import_playbook: playbooks/titan.yml

@@ -1,0 +1,5 @@
+adguard_upstream_dns: "1.1.1.1"
+
+adguard_rewrites:
+  - domain: "*.internal.thespragg.dev"
+    answer: "10.0.40.4"

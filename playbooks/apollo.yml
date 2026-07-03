@@ -1,0 +1,5 @@
+- import_playbook: proxmox.yml
+- import_playbook: opnsense.yml
+- import_playbook: adguard.yml
+- import_playbook: unifi.yml
+- import_playbook: caddy.yml

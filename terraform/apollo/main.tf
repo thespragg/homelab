@@ -2,7 +2,7 @@ terraform {
   required_providers {
     proxmox = {
       source  = "bpg/proxmox"
-      version = "~> 0.78"
+      version = "~> 0.100"
     }
     null = {
       source  = "hashicorp/null"
@@ -12,7 +12,7 @@ terraform {
 }
 
 provider "proxmox" {
-  endpoint  = "https://apollo.internal.thespragg.dev:8006"
+  endpoint  = "https://${var.proxmox_host}:8006"
   api_token = var.proxmox_api_token
   insecure  = true # self-signed cert on fresh Proxmox install
 }

@@ -1,0 +1,33 @@
+http:
+  address: 0.0.0.0:3000
+
+dns:
+  bind_hosts:
+    - 0.0.0.0
+  port: 53
+  upstream_dns:
+    - "{{ adguard_upstream_dns }}"
+  bootstrap_dns:
+{% for dns in adguard_bootstrap_dns %}
+    - {{ dns }}
+{% endfor %}
+
+filtering:
+{% if adguard_rewrites %}
+  rewrites:
+{% for rewrite in adguard_rewrites %}
+    - domain: "{{ rewrite.domain }}"
+      answer: "{{ rewrite.answer }}"
+{% endfor %}
+{% else %}
+  rewrites: []
+{% endif %}
+
+filters:
+  - enabled: true
+    url: https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt
+    name: AdGuard DNS filter
+    id: 1
+
+users: []
+schema_version: 28

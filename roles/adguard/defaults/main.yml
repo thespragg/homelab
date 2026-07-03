@@ -1,0 +1,7 @@
+adguard_version: "0.107.62"
+adguard_install_dir: /opt/AdGuardHome
+adguard_upstream_dns: ""
+adguard_bootstrap_dns:
+  - 9.9.9.9
+  - 149.112.112.112
+adguard_rewrites: []

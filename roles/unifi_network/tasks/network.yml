@@ -1,0 +1,54 @@
+- name: Find UniFi network {{ unifi_desired_network.name }}
+  ansible.builtin.set_fact:
+    unifi_current_network: >-
+      {{
+        (unifi_networks_response.json.data |
+         selectattr('name', 'equalto', unifi_desired_network.name) |
+         list |
+         first) |
+        default({}, true)
+      }}
+
+- name: Create UniFi network {{ unifi_desired_network.name }}
+  ansible.builtin.uri:
+    url: "{{ unifi_network_api_url }}/sites/{{ unifi_network_site.id }}/networks"
+    method: POST
+    headers:
+      X-API-KEY: "{{ unifi_network_api_key }}"
+    validate_certs: "{{ unifi_network_validate_certs }}"
+    body_format: json
+    body:
+      management: UNMANAGED
+      name: "{{ unifi_desired_network.name }}"
+      enabled: true
+      vlanId: "{{ unifi_desired_network.vlan_id }}"
+    status_code: 201
+  when:
+    - unifi_current_network.id is not defined
+    - not ansible_check_mode
+  no_log: true
+
+- name: Update UniFi network {{ unifi_desired_network.name }}
+  ansible.builtin.uri:
+    url: >-
+      {{ unifi_network_api_url }}/sites/{{ unifi_network_site.id }}/networks/{{ unifi_current_network.id }}
+    method: PUT
+    headers:
+      X-API-KEY: "{{ unifi_network_api_key }}"
+    validate_certs: "{{ unifi_network_validate_certs }}"
+    body_format: json
+    body:
+      management: UNMANAGED
+      name: "{{ unifi_desired_network.name }}"
+      enabled: true
+      vlanId: "{{ unifi_desired_network.vlan_id }}"
+    status_code: 200
+  when:
+    - unifi_current_network.id is defined
+    - >-
+      unifi_current_network.management != 'UNMANAGED' or
+      not unifi_current_network.enabled or
+      (unifi_current_network.vlanId | int) != (unifi_desired_network.vlan_id | int)
+    - not ansible_check_mode
+  no_log: true
+

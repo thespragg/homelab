@@ -1,0 +1,7 @@
+- name: Mark UniFi OS Server version installed
+  ansible.builtin.file:
+    path: "{{ unifi_os_server_install_dir }}/.installed-{{ unifi_os_server_version }}"
+    state: touch
+    owner: root
+    group: root
+    mode: "0644"

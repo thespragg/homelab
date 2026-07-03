@@ -1,14 +1,13 @@
 # Homelab
 
 ## Prerequisites
-- Ansible installed
-- Terraform installed
+- Ansible, Terraform installed
 - SSH key access to hosts
 - Vault password file at `~/.ansible/vault-password`
 
 ## First-time Proxmox setup (Apollo)
 
-After running the Ansible proxmox playbook, create the Terraform API token on apollo:
+Run the Ansible proxmox playbook, then create the Terraform API token on Apollo:
 
 ```bash
 pveum user add terraform@pve
@@ -17,155 +16,125 @@ pveum aclmod / -user terraform@pve -role Terraform
 pveum user token add terraform@pve terraform --privsep 0
 ```
 
-Then set up the Terraform credentials:
-
 ```bash
+# Set vars
 cp terraform/apollo/terraform.tfvars.example terraform/apollo/terraform.tfvars
-# edit terraform.tfvars — add the token secret, and the OPNsense VGA image URL + checksum
-# from https://opnsense.org/download/ (VGA image, amd64)
-```
 
-Then initialise and apply:
-
-```bash
 cd terraform/apollo && terraform init && terraform apply
 ```
 
-## Building a custom OPNsense image
+## First-time Proxmox setup (Titan)
 
-Terraform expects a pre-configured OPNsense image hosted at a URL. To build one:
-
-**1. Download and extract the base nano image**
-
-Get the nano amd64 image from https://opnsense.org/download/ and extract it:
+Titan is a second, separately-managed Proxmox host (not part of the `proxmox` Ansible group/role - only its LXCs are managed from this repo). To let Terraform provision containers on it, create an API token the same way as on Apollo, run on Titan itself:
 
 ```bash
-bunzip2 -k OPNsense-*.img.bz2
+pveum user add terraform@pve
+pveum role add Terraform -privs "Datastore.Allocate Datastore.AllocateSpace Datastore.AllocateTemplate Datastore.Audit Pool.Allocate Sys.Audit Sys.Console Sys.Modify VM.Allocate VM.Audit VM.Clone VM.Config.CDROM VM.Config.Cloudinit VM.Config.CPU VM.Config.Disk VM.Config.HWType VM.Config.Memory VM.Config.Network VM.Config.Options VM.Migrate VM.PowerMgmt SDN.Use"
+pveum aclmod / -user terraform@pve -role Terraform
+pveum user token add terraform@pve terraform --privsep 0
 ```
 
-**2. Boot in QEMU**
+Then:
 
 ```bash
-brew install qemu
+cp terraform/titan/terraform.tfvars.example terraform/titan/terraform.tfvars
+# edit terraform.tfvars — add the token secret
 
-qemu-system-x86_64 \
-  -m 2048 \
-  -drive file=OPNsense-*.img,format=raw,if=virtio \
-  -netdev user,id=net0,hostfwd=tcp::8080-:80,hostfwd=tcp::8443-:443 \
-  -device virtio-net-pci,netdev=net0 \
-  -nographic
+cd terraform/titan && terraform init && terraform apply
 ```
 
-**3. Assign interfaces** (option `1`)
-
-```
-Do you want to set up VLANs now? y
-
-Parent interface: vtnet0  →  VLAN tag: 10
-Parent interface: vtnet0  →  VLAN tag: 20
-Parent interface: (blank)
-
-WAN interface: vtnet0_vlan10
-LAN interface: vtnet0_vlan20
-Optional:      (blank)
-Proceed?       y
-```
-
-**4. Set LAN IP address** (option `2`, select LAN)
-
-```
-IPv4 via DHCP:   n
-IPv4 address:    10.0.20.1
-Subnet bits:     24
-Upstream GW:     (blank)
-IPv6 via DHCP6:  n
-IPv6 address:    (blank)
-Enable DHCP:     y
-DHCP start:      10.0.20.100
-DHCP end:        10.0.20.200
-Revert to HTTP:  n
-```
-
-**5. Set root password and enable SSH** (option `8` — Shell)
+This provisions the `paperless` LXC (10.0.40.30) using the `debian-12-standard` template already cached on Titan's `local` storage. Once it's up, run:
 
 ```bash
-passwd
-viconfig   # add <ssh><enabled>enabled</enabled><group>admins</group></ssh> inside <system>
-exit
+ansible-playbook playbooks/paperless.yml
 ```
 
-**6. Power off**
+**Assumptions baked into `terraform/titan/paperless.tf` that haven't been verified against a live apply yet** — check these before running `terraform apply`:
+- Storage pool `ContainerStorage` is used for the container rootfs (confirmed present via `pvesm status`, but not exercised by Terraform yet).
+- The container attaches to `vmbr0` (10.0.40.0/24, gateway 10.0.40.1) — this is Titan's primary LAN bridge, not the legacy `10.10.0.0/24` internal network (`vmbr1`) that postgres/grafana/osrs-clan-bot/immich (Titan's LXC copy) currently sit on. That network is currently unreachable and is being phased out; `postgres_host` in `inventory/group_vars/all/vars.yaml` assumes postgres will be reachable at `10.0.40.10` once migrated — update it once that actually happens.
+- Caddy runs on Apollo at `10.0.40.4`, on the same subnet as `paperless` (10.0.40.30), so the reverse proxy entry in `inventory/host_vars/caddy/vars.yml` should work once `playbooks/caddy.yml` is re-run — it just needs postgres to be reachable first for paperless itself to come up.
 
-```bash
-poweroff
+## Building the installed OPNsense image
+
+Build and configure the installed disk once, upload it privately to R2, and set
+`opnsense_img_url` to a presigned download URL. The complete build procedure is
+in `bootstrap/opnsense/README.md`.
+
+Proxmox applies the VLAN tags before frames reach the VM. Do not create VLAN
+subinterfaces in OPNsense. Terraform fixes the NIC order and MAC addresses as:
+
+| OPNsense NIC | Purpose | VLAN | Address |
+|---|---|---:|---|
+| `vtnet0` | WAN1 | 901 | PPPoE/ISP configuration baked into image |
+| `vtnet1` | WAN2 | 902 | Reserved until adoption |
+| `vtnet2` | MGMT | 10 | `10.0.10.1/24` |
+| `vtnet3` | DEVICES | 20 | `10.0.20.1/24` |
+| `vtnet4` | IOT | 30 | `10.0.30.1/24` |
+| `vtnet5` | HOMELAB | 40 | `10.0.40.1/24` |
+| `vtnet6` | GUEST | 50 | `10.0.50.1/24` |
+
+**Set interface addresses:**
+```
+MGMT: 10.0.10.1/24, no gateway or DHCP
+DEVICES: 10.0.20.1/24, DHCP 10.0.20.100–200
+IOT: 10.0.30.1/24, DHCP 10.0.30.100–200
+HOMELAB: 10.0.40.1/24, DHCP 10.0.40.100–200
+GUEST: 10.0.50.1/24, DHCP 10.0.50.100–200
 ```
 
-**7. Recompress and upload**
-
-```bash
-cp OPNsense-*.img opnsense-custom.img
-bzip2 opnsense-custom.img
-# upload opnsense-custom.img.bz2 to Cloudflare R2 (or equivalent)
-# copy the public URL into terraform/apollo/terraform.tfvars → opnsense_img_url
-```
-
-## Accessing OPNsense web UI
-
-Apollo has a VLAN 20 interface at `10.0.20.2`, so you can tunnel through it rather than needing a device physically on VLAN 20:
-
-```bash
-ssh -L 8080:10.0.20.1:80 root@192.168.0.94 -N
-```
-
-Then browse to `http://localhost:8080`. Default credentials: `root` / `opnsense`.
+The renderer also disables hardware offloading and adds the initial MGMT rule
+allowing Apollo (`10.0.10.2`) to reach OPNsense. WAN1 is rendered as PPPoE on
+`vtnet0`; its username and password come from `vault_opnsense_pppoe_username`
+and `vault_opnsense_pppoe_password` in Apollo's encrypted vault. Ansible owns
+later changes.
 
 ## Running
 
-Ansible — provision everything:
-```bash
-ansible-playbook site.yml
-```
-
-Or a specific service:
 ```bash
 ansible-playbook playbooks/proxmox.yml
 ansible-playbook playbooks/osrs-clan-bot.yml
 ansible-playbook playbooks/postgres.yml
+ansible-playbook playbooks/paperless.yml
 ansible-playbook playbooks/monitoring.yml
 ansible-playbook playbooks/caddy.yml
-```
-
-Terraform — provision VMs and LXCs on Apollo:
-```bash
 cd terraform/apollo && terraform apply
 ```
 
-## WAN Cutover (Apollo)
+Terraform — provision LXCs on Titan:
+```bash
+cd terraform/titan && terraform apply
+```
 
-When ready to cut over from the Archer C6 to OPNsense as the main router:
+## OPNsense web UI
 
-1. **Switch** — log in to Sodola (192.168.1.x via direct cable + static IP):
-   - Set ONT port to access port, PVID 10
-   - Add tagged VLAN 10 to Apollo's trunk port
-   - Disconnect Archer C6 WAN port
+`http://10.0.10.1` from the management VLAN, or `http://10.0.20.1` from LAN.
 
-2. **OPNsense** — swap the WAN interface from the temporary untagged bridge to the VLAN 10 interface and configure for your ISP (DHCP or PPPoE)
+## Network layout
 
-3. **Terraform** — update `terraform/apollo/vms.tf`, OPNsense WAN network device:
-   - Add `vlan_id = 10` to the first `network_device` block
-   - Run `terraform apply`
+| Switch port | Mode | Native/PVID | Tagged VLANs |
+|---|---|---:|---|
+| WAN1 | Access | 901 | None |
+| Apollo | Trunk | 999 | 10, 20, 30, 40, 50, 901, 902 |
+| Access point | Trunk | 10 | 20, 30, 50 and optionally 40 |
+| Future WAN2 | Access | 902 | None; leave disconnected |
 
-4. **Ansible** — update `inventory/host_vars/apollo/vars.yml`:
-   - Uncomment the post-cutover `proxmox_management_ip` and `proxmox_management_gateway` lines
-   - Comment out the pre-cutover values
-   - Run `ansible-playbook playbooks/proxmox.yml`
-
-5. **DNS** — point devices to AdGuard on 10.0.20.x (or set it as upstream in OPNsense DHCP)
+VLAN 999 is an unused native VLAN. It must not have an address or DHCP server.
+Apollo's management address is `10.0.10.2`; OPNsense MGMT is `10.0.10.1`.
 
 ## Vault
-Secrets are stored in per-host vault files under `inventory/host_vars/` and globally in `inventory/group_vars/all/vault.yml`.
 
-To edit a vault file:
 ```bash
 ansible-vault edit inventory/host_vars/<host>/vault.yml
 ```
+
+## UniFi Network automation
+
+After the first UniFi Network onboarding, create an API key under **Settings >
+Control Plane > Integrations**. Copy `inventory/host_vars/unifi/vault.yml.example`
+to `vault.yml`, replace its values, and encrypt it with `ansible-vault encrypt`.
+
+The `unifi_network` role creates the VLAN-only networks in UniFi and reconciles
+one WPA2 PPSK SSID named `thespragg`. Its Devices, IoT, and Guest passwords map
+clients to VLANs 20, 30, and 50 respectively. PPSK does not support WPA3 or the
+6 GHz band. OPNsense provides routing, DHCP, and isolation; Guest can reach
+AdGuard and the internet but is blocked from other private networks.

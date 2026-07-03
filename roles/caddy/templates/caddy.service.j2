@@ -13,8 +13,6 @@ ExecStart={{ caddy_install_path }} run --environ --config {{ caddy_config_dir }}
 ExecReload={{ caddy_install_path }} reload --config {{ caddy_config_dir }}/Caddyfile --force
 TimeoutStopSec=5s
 LimitNOFILE=1048576
-PrivateTmp=true
-ProtectSystem=full
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 [Install]

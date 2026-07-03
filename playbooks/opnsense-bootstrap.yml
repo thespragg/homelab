@@ -1,0 +1,29 @@
+- name: Render OPNsense bootstrap configuration
+  hosts: apollo
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Render OPNsense config.xml
+      ansible.builtin.command:
+        argv:
+          - python3
+          - "{{ playbook_dir }}/../scripts/render-opnsense-bootstrap.py"
+          - "{{ playbook_dir }}/../bootstrap/opnsense/config.xml.sample"
+          - "{{ playbook_dir }}/../build/opnsense/conf/config.xml"
+          - --ssh-public-key
+          - >-
+            {{
+              lookup('env', 'SSH_PUBLIC_KEY_PATH') |
+              default(lookup('env', 'HOME') + '/.ssh/id_ed25519.pub', true)
+            }}
+          - --pppoe-username
+          - "{{ opnsense_pppoe_username }}"
+          - --pppoe-password
+          - "{{ opnsense_pppoe_password }}"
+          - --pppoe-description
+          - "{{ opnsense_pppoe_description }}"
+      no_log: true
+
+    - name: Report rendered OPNsense bootstrap path
+      ansible.builtin.debug:
+        msg: Created build/opnsense/conf/config.xml

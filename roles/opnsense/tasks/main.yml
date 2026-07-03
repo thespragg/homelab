@@ -1,0 +1,327 @@
+- name: Wait for OPNsense API to be reachable
+  uri:
+    url: "{{ opnsense_api_url }}/api/core/firmware/running"
+    method: GET
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    status_code: [200, 404]
+    timeout: 5
+  check_mode: false
+  register: api_check
+  until: api_check is not failed
+  retries: 30
+  delay: 10
+
+- name: Find management access rules
+  uri:
+    url: "{{ opnsense_api_url }}/api/firewall/filter/searchRule?current=1&rowCount=-1&searchPhrase={{ item.description | urlencode }}"
+    method: GET
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    status_code: 200
+  check_mode: false
+  loop: "{{ opnsense_management_rules }}"
+  register: management_rule_search
+
+- name: Add management access rules
+  uri:
+    url: "{{ opnsense_api_url }}/api/firewall/filter/addRule"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      rule:
+        enabled: "1"
+        action: pass
+        quick: "1"
+        interface: "{{ item.item.interface }}"
+        direction: in
+        ipprotocol: inet
+        protocol: TCP
+        source_net: "{{ item.item.source }}"
+        destination_net: "{{ item.item.destination }}"
+        destination_port: "{{ item.item.destination_port }}"
+        description: "{{ item.item.description }}"
+    status_code: 200
+  loop: "{{ management_rule_search.results }}"
+  when: item.json.rows | length == 0
+  register: management_rule_add
+  changed_when: true
+
+- name: Apply management access rules
+  uri:
+    url: "{{ opnsense_api_url }}/api/firewall/filter/apply"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body: {}
+    status_code: 200
+  when: management_rule_add is changed
+
+- name: Find network policy rules
+  uri:
+    url: "{{ opnsense_api_url }}/api/firewall/filter/searchRule?current=1&rowCount=-1&searchPhrase={{ item.description | urlencode }}"
+    method: GET
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    status_code: 200
+  check_mode: false
+  loop: "{{ opnsense_network_rules }}"
+  register: network_rule_search
+
+- name: Add network policy rules
+  uri:
+    url: "{{ opnsense_api_url }}/api/firewall/filter/addRule"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      rule: "{{ {
+        'enabled': '1',
+        'action': item.item.action,
+        'quick': '1',
+        'interface': item.item.interface,
+        'direction': 'in',
+        'ipprotocol': 'inet',
+        'protocol': item.item.protocol,
+        'source_net': item.item.source,
+        'destination_net': item.item.destination,
+        'description': item.item.description
+        } | combine(
+          {'destination_port': item.item.destination_port}
+          if item.item.destination_port is defined else {}
+        ) }}"
+    status_code: 200
+  loop: "{{ network_rule_search.results }}"
+  when: item.json.rows | length == 0
+  register: network_rule_add
+  changed_when: true
+
+- name: Apply network policy rules
+  uri:
+    url: "{{ opnsense_api_url }}/api/firewall/filter/apply"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body: {}
+    status_code: 200
+  when: network_rule_add is changed
+
+- name: Read Unbound settings
+  uri:
+    url: "{{ opnsense_api_url }}/api/unbound/settings/get"
+    method: GET
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    status_code: 200
+  check_mode: false
+  register: unbound_settings
+
+- name: Set Unbound DNS port
+  uri:
+    url: "{{ opnsense_api_url }}/api/unbound/settings/set"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      unbound:
+        port: "{{ opnsense_unbound_port }}"
+    status_code: 200
+  when: >-
+    (unbound_settings.json.unbound.port | default('') | string) !=
+    (opnsense_unbound_port | string)
+  register: unbound_settings_update
+  changed_when: true
+
+- name: Get existing Unbound host overrides
+  uri:
+    url: "{{ opnsense_api_url }}/api/unbound/settings/searchHostOverride"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      current: 1
+      rowCount: -1
+      searchPhrase: ""
+    status_code: 200
+  check_mode: false
+  register: unbound_hosts
+  when: opnsense_host_overrides | length > 0
+
+- name: Add Unbound host overrides
+  uri:
+    url: "{{ opnsense_api_url }}/api/unbound/settings/addHostOverride"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      host:
+        enabled: "1"
+        hostname: "{{ item.host }}"
+        domain: "{{ item.domain }}"
+        rr: "A"
+        server: "{{ item.ip }}"
+        description: ""
+        mxprio: ""
+        mx: ""
+    status_code: 200
+  loop: "{{ opnsense_host_overrides }}"
+  when: >
+    opnsense_host_overrides | length > 0 and
+    (unbound_hosts.json.rows |
+     selectattr('hostname', 'equalto', item.host) |
+     selectattr('domain', 'equalto', item.domain) |
+     list | length) == 0
+  register: unbound_host_add
+  changed_when: true
+
+- name: Apply Unbound configuration
+  uri:
+    url: "{{ opnsense_api_url }}/api/unbound/service/reconfigure"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body: {}
+    status_code: 200
+  when: unbound_settings_update is changed or unbound_host_add is changed
+  changed_when: true
+
+- name: Read Kea DHCP settings
+  uri:
+    url: "{{ opnsense_api_url }}/api/kea/dhcpv4/get"
+    method: GET
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    status_code: 200
+  check_mode: false
+  register: kea_settings
+
+- name: Enable Kea DHCP on internal interfaces
+  uri:
+    url: "{{ opnsense_api_url }}/api/kea/dhcpv4/set"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      dhcpv4:
+        general:
+          enabled: "1"
+          interfaces: "{{ opnsense_dhcp_interfaces }}"
+    status_code: 200
+  when: >-
+    (kea_settings.json.dhcpv4.general.enabled | default('') | string) != '1' or
+    (kea_settings.json.dhcpv4.general.interfaces | default('') | string) !=
+    (opnsense_dhcp_interfaces | string)
+  register: kea_settings_update
+  changed_when: true
+
+- name: Get existing Kea DHCP subnets
+  uri:
+    url: "{{ opnsense_api_url }}/api/kea/dhcpv4/searchSubnet"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      current: 1
+      rowCount: -1
+      searchPhrase: ""
+    status_code: 200
+  check_mode: false
+  register: kea_subnets
+
+- name: Add Kea DHCP subnets
+  uri:
+    url: "{{ opnsense_api_url }}/api/kea/dhcpv4/addSubnet"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      subnet4:
+        subnet: "{{ item.subnet }}"
+        pools: "{{ item.range_start }} - {{ item.range_end }}"
+        option_data:
+          routers: "{{ item.gateway }}"
+          domain_name_servers: "{{ opnsense_dhcp_dns }}"
+        description: "{{ item.description }}"
+    status_code: 200
+  loop: "{{ opnsense_dhcp_subnets }}"
+  when: >
+    (kea_subnets.json.rows |
+     selectattr('subnet', 'equalto', item.subnet) |
+     list | length) == 0
+  register: kea_subnet_add
+  changed_when: true
+
+- name: Update existing Kea DHCP subnets
+  uri:
+    url: >-
+      {{ opnsense_api_url }}/api/kea/dhcpv4/setSubnet/{{
+        kea_subnets.json.rows |
+        selectattr('subnet', 'equalto', item.subnet) |
+        map(attribute='uuid') |
+        first
+      }}
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      subnet4:
+        subnet: "{{ item.subnet }}"
+        pools: "{{ item.range_start }} - {{ item.range_end }}"
+        option_data:
+          routers: "{{ item.gateway }}"
+          domain_name_servers: "{{ opnsense_dhcp_dns }}"
+        description: "{{ item.description }}"
+    status_code: 200
+  loop: "{{ opnsense_dhcp_subnets }}"
+  when: >
+    (kea_subnets.json.rows |
+     selectattr('subnet', 'equalto', item.subnet) |
+     list | length) > 0
+  register: kea_subnet_update
+  changed_when: true
+
+- name: Apply Kea DHCP configuration
+  uri:
+    url: "{{ opnsense_api_url }}/api/kea/service/reconfigure"
+    method: POST
+    url_username: "{{ opnsense_api_key }}"
+    url_password: "{{ opnsense_api_secret }}"
+    force_basic_auth: yes
+    body_format: json
+    body: {}
+    status_code: 200
+  when: >-
+    kea_settings_update is changed or
+    kea_subnet_add is changed or
+    kea_subnet_update is changed
+  changed_when: true

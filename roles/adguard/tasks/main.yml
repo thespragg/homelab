@@ -1,0 +1,42 @@
+- name: Download and extract AdGuard Home
+  unarchive:
+    src: "https://github.com/AdguardTeam/AdGuardHome/releases/download/v{{ adguard_version }}/AdGuardHome_linux_amd64.tar.gz"
+    dest: /opt
+    remote_src: yes
+    creates: "{{ adguard_install_dir }}/AdGuardHome"
+
+- name: Place AdGuard Home config
+  template:
+    src: AdGuardHome.yaml.j2
+    dest: "{{ adguard_install_dir }}/AdGuardHome.yaml"
+    mode: '0600'
+  notify: Restart AdGuard Home
+
+- name: Place AdGuard Home systemd service
+  template:
+    src: AdGuardHome.service.j2
+    dest: /etc/systemd/system/AdGuardHome.service
+    mode: '0644'
+  notify: Restart AdGuard Home
+
+- name: Allow DNS through firewall
+  ufw:
+    rule: allow
+    port: "53"
+    proto: "{{ item }}"
+  loop:
+    - tcp
+    - udp
+
+- name: Allow AdGuard admin through firewall
+  ufw:
+    rule: allow
+    port: "3000"
+    proto: tcp
+
+- name: Enable and start AdGuard Home
+  systemd:
+    name: AdGuardHome
+    enabled: yes
+    daemon_reload: yes
+    state: started

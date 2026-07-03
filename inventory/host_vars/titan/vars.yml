@@ -1,0 +1,21 @@
+immich_upload_location: /data/immich
+immich_db_data_location: /data/immich/postgres
+
+restic_jobs:
+  - name: immich
+    type: filesystem
+    repository_path: immich/titan
+    schedule: daily
+    paths:
+      - /data/immich
+    pre_commands:
+      - docker compose -f /opt/immich/docker-compose.yml stop immich-server immich-machine-learning
+      - mkdir -p /data/immich/backups
+      - docker exec -e PGPASSWORD="{{ immich_db_password }}" immich_postgres pg_dump -U "{{ immich_db_username }}" -d "{{ immich_db_name }}" --format=custom > /data/immich/backups/restic-preflight.pgdump
+    post_commands:
+      - docker compose -f /opt/immich/docker-compose.yml start immich-server immich-machine-learning
+    retention:
+      daily: 14
+      weekly: 8
+      monthly: 12
+      yearly: 3

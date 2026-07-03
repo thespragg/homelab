@@ -1,0 +1,14 @@
+- name: Configure UniFi OS Server
+  hosts: network_management
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Wait for host to be reachable
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+    - name: Gather facts
+      ansible.builtin.setup:
+  roles:
+    - common
+    - unifi
+    - unifi_network

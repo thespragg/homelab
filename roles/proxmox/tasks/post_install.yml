@@ -1,0 +1,35 @@
+- name: Install subscription nag removal script
+  ansible.builtin.copy:
+    dest: /usr/local/bin/pve-remove-nag.sh
+    owner: root
+    group: root
+    mode: "0755"
+    content: |
+      #!/bin/sh
+      WEB_JS=/usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+      if [ -s "$WEB_JS" ] && ! grep -q NoMoreNagging "$WEB_JS"; then
+          sed -i -e "/data\.status/ s/!//" -e "/data\.status/ s/active/NoMoreNagging/" "$WEB_JS"
+      fi
+  notify: Apply subscription nag removal
+
+- name: Install APT hook to re-apply nag removal after upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/no-nag-script
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      DPkg::Post-Invoke { "/usr/local/bin/pve-remove-nag.sh"; };
+  notify: Apply subscription nag removal
+
+- name: Disable HA services (single-node)
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+    - pve-ha-lrm
+    - pve-ha-crm
+    - corosync
+  failed_when: false
+  when: proxmox_disable_ha | default(true)

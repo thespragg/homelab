@@ -1,8 +1,10 @@
 - import_tasks: repos.yml
 - import_tasks: packages.yml
+- import_tasks: post_install.yml
 - import_tasks: keys.yml
 - import_tasks: ssh.yml
 - import_tasks: fail2ban.yml
 - import_tasks: system.yml
 - import_tasks: network.yml
 - import_tasks: storage.yml
+- import_tasks: containers.yml

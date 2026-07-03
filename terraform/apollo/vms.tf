@@ -9,27 +9,72 @@ resource "proxmox_virtual_environment_vm" "opnsense" {
   }
 
   memory {
-    dedicated = 2048
+    dedicated = 8192
   }
 
-  # LAN - vtnet0, VLAN 20, 10.0.20.0/24
+  # Keep this order and the MAC addresses stable: the imported bootstrap config
+  # assigns vtnet names. Proxmox handles VLAN tags, so OPNsense sees access-style NICs.
+  # vtnet0: WAN1
   network_device {
-    bridge  = "vmbr0"
-    model   = "virtio"
-    vlan_id = 20
+    bridge      = "vmbr0"
+    mac_address = "02:00:00:00:01:00"
+    model       = "virtio"
+    vlan_id     = var.wan1_vlan_id
   }
 
-  # WAN - vtnet1, untagged, temporary internet via Archer C6 during build phase
-  # At cutover: add vlan_id = 10
+  # vtnet1: WAN2. Leave the interface disabled in OPNsense until it is connected.
   network_device {
-    bridge = "vmbr0"
-    model  = "virtio"
+    bridge      = "vmbr0"
+    mac_address = "02:00:00:00:01:01"
+    model       = "virtio"
+    vlan_id     = var.wan2_vlan_id
   }
 
-  started         = false
+  # vtnet2: infrastructure management
+  network_device {
+    bridge      = "vmbr0"
+    mac_address = "02:00:00:00:00:10"
+    model       = "virtio"
+    vlan_id     = var.management_vlan_id
+  }
+
+  # vtnet3: trusted LAN
+  network_device {
+    bridge      = "vmbr0"
+    mac_address = "02:00:00:00:00:20"
+    model       = "virtio"
+    vlan_id     = var.lan_vlan_id
+  }
+
+  # vtnet4: IoT
+  network_device {
+    bridge      = "vmbr0"
+    mac_address = "02:00:00:00:00:30"
+    model       = "virtio"
+    vlan_id     = var.iot_vlan_id
+  }
+
+  # vtnet5: homelab services
+  network_device {
+    bridge      = "vmbr0"
+    mac_address = "02:00:00:00:00:40"
+    model       = "virtio"
+    vlan_id     = var.homelab_vlan_id
+  }
+
+  # vtnet6: untrusted guests
+  network_device {
+    bridge      = "vmbr0"
+    mac_address = "02:00:00:00:00:50"
+    model       = "virtio"
+    vlan_id     = var.guest_vlan_id
+  }
+
+  on_boot         = true
+  started         = true
   stop_on_destroy = true
 
   operating_system {
-    type = "other" # FreeBSD
+    type = "other"
   }
 }

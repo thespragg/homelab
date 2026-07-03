@@ -2,11 +2,19 @@ postgres_allowed_hosts:
   - 10.10.0.21
   - 192.168.0.195
   - 192.168.0.123
+  - 10.0.40.30
+  - 10.0.20.118
 
 postgres_databases:
   - name: osrs_clan_bot
     user: osrs_clan_bot_user
     password: "{{ vault_osrs_clan_bot_db_password }}"
+  - name: paperless
+    user: paperless_user
+    password: "{{ vault_paperless_db_password }}"
+  - name: planr
+    user: planr_app
+    password: "{{ vault_planr_db_password }}"
 
 restic_jobs:
   - name: osrs-clan-bot
@@ -19,3 +27,13 @@ restic_jobs:
       daily: 7
       weekly: 4
       monthly: 6
+  - name: paperless
+    type: postgres
+    database: paperless
+    db_user: paperless_user
+    db_password: "{{ vault_paperless_db_password }}"
+    schedule: daily
+    retention:
+      daily: 14
+      weekly: 8
+      monthly: 12
