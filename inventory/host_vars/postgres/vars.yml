@@ -1,9 +1,7 @@
 postgres_allowed_hosts:
-  - 10.10.0.21
-  - 192.168.0.195
-  - 192.168.0.123
-  - 10.0.40.30
+  - 10.0.40.9
   - 10.0.20.118
+  - 10.0.20.102
 
 postgres_databases:
   - name: osrs_clan_bot

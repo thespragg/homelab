@@ -40,7 +40,7 @@ resource "proxmox_virtual_environment_container" "paperless" {
 
     ip_config {
       ipv4 {
-        address = "10.0.40.30/24"
+        address = "10.0.40.9/24"
         gateway = "10.0.40.1"
       }
     }

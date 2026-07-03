@@ -43,7 +43,7 @@ cp terraform/titan/terraform.tfvars.example terraform/titan/terraform.tfvars
 cd terraform/titan && terraform init && terraform apply
 ```
 
-This provisions the `paperless` LXC (10.0.40.30) using the `debian-12-standard` template already cached on Titan's `local` storage. Once it's up, run:
+This provisions the `paperless` LXC (10.0.40.9) using the `debian-12-standard` template already cached on Titan's `local` storage. Once it's up, run:
 
 ```bash
 ansible-playbook playbooks/paperless.yml
@@ -52,7 +52,7 @@ ansible-playbook playbooks/paperless.yml
 **Assumptions baked into `terraform/titan/paperless.tf` that haven't been verified against a live apply yet** — check these before running `terraform apply`:
 - Storage pool `ContainerStorage` is used for the container rootfs (confirmed present via `pvesm status`, but not exercised by Terraform yet).
 - The container attaches to `vmbr0` (10.0.40.0/24, gateway 10.0.40.1) — this is Titan's primary LAN bridge, not the legacy `10.10.0.0/24` internal network (`vmbr1`) that postgres/grafana/osrs-clan-bot/immich (Titan's LXC copy) currently sit on. That network is currently unreachable and is being phased out; `postgres_host` in `inventory/group_vars/all/vars.yaml` assumes postgres will be reachable at `10.0.40.10` once migrated — update it once that actually happens.
-- Caddy runs on Apollo at `10.0.40.4`, on the same subnet as `paperless` (10.0.40.30), so the reverse proxy entry in `inventory/host_vars/caddy/vars.yml` should work once `playbooks/caddy.yml` is re-run — it just needs postgres to be reachable first for paperless itself to come up.
+- Caddy runs on Apollo at `10.0.40.4`, on the same subnet as `paperless` (10.0.40.9), so the reverse proxy entry in `inventory/host_vars/caddy/vars.yml` should work once `playbooks/caddy.yml` is re-run — it just needs postgres to be reachable first for paperless itself to come up.
 
 ## Building the installed OPNsense image
 

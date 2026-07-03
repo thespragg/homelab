@@ -1,4 +1,4 @@
-paperless_bind_address: 10.0.40.30
+paperless_bind_address: 10.0.40.9
 paperless_allowed_hosts:
   - 10.0.40.0/24
 
