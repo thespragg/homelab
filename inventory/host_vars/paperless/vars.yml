@@ -1,0 +1,26 @@
+paperless_bind_address: 10.0.40.30
+paperless_allowed_hosts:
+  - 10.0.40.0/24
+
+paperless_db_name: paperless
+paperless_db_username: paperless_user
+paperless_db_password: "{{ vault_paperless_db_password }}"
+
+paperless_secret_key: "{{ vault_paperless_secret_key }}"
+paperless_admin_user: admin
+paperless_admin_password: "{{ vault_paperless_admin_password }}"
+
+paperless_url: "https://paperless.internal.thespragg.dev"
+
+restic_jobs:
+  - name: paperless
+    type: filesystem
+    repository_path: paperless/titan
+    schedule: daily
+    paths:
+      - /data/paperless
+    retention:
+      daily: 14
+      weekly: 8
+      monthly: 12
+      yearly: 3

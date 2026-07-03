@@ -4,5 +4,6 @@ restic_b2_bucket: homelab-backups
 restic_b2_key_id: "{{ vault_b2_key_id }}"
 restic_b2_application_key: "{{ vault_b2_application_key }}"
 restic_password: "{{ vault_restic_password }}"
+restic_repository_backend: b2
 
 restic_jobs: []

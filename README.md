@@ -23,6 +23,37 @@ cp terraform/apollo/terraform.tfvars.example terraform/apollo/terraform.tfvars
 cd terraform/apollo && terraform init && terraform apply
 ```
 
+## First-time Proxmox setup (Titan)
+
+Titan is a second, separately-managed Proxmox host (not part of the `proxmox` Ansible group/role - only its LXCs are managed from this repo). To let Terraform provision containers on it, create an API token the same way as on Apollo, run on Titan itself:
+
+```bash
+pveum user add terraform@pve
+pveum role add Terraform -privs "Datastore.Allocate Datastore.AllocateSpace Datastore.AllocateTemplate Datastore.Audit Pool.Allocate Sys.Audit Sys.Console Sys.Modify VM.Allocate VM.Audit VM.Clone VM.Config.CDROM VM.Config.Cloudinit VM.Config.CPU VM.Config.Disk VM.Config.HWType VM.Config.Memory VM.Config.Network VM.Config.Options VM.Migrate VM.PowerMgmt SDN.Use"
+pveum aclmod / -user terraform@pve -role Terraform
+pveum user token add terraform@pve terraform --privsep 0
+```
+
+Then:
+
+```bash
+cp terraform/titan/terraform.tfvars.example terraform/titan/terraform.tfvars
+# edit terraform.tfvars — add the token secret
+
+cd terraform/titan && terraform init && terraform apply
+```
+
+This provisions the `paperless` LXC (10.0.40.30) using the `debian-12-standard` template already cached on Titan's `local` storage. Once it's up, run:
+
+```bash
+ansible-playbook playbooks/paperless.yml
+```
+
+**Assumptions baked into `terraform/titan/paperless.tf` that haven't been verified against a live apply yet** — check these before running `terraform apply`:
+- Storage pool `ContainerStorage` is used for the container rootfs (confirmed present via `pvesm status`, but not exercised by Terraform yet).
+- The container attaches to `vmbr0` (10.0.40.0/24, gateway 10.0.40.1) — this is Titan's primary LAN bridge, not the legacy `10.10.0.0/24` internal network (`vmbr1`) that postgres/grafana/osrs-clan-bot/immich (Titan's LXC copy) currently sit on. That network is currently unreachable and is being phased out; `postgres_host` in `inventory/group_vars/all/vars.yaml` assumes postgres will be reachable at `10.0.40.10` once migrated — update it once that actually happens.
+- Caddy runs on Apollo at `10.0.40.4`, on the same subnet as `paperless` (10.0.40.30), so the reverse proxy entry in `inventory/host_vars/caddy/vars.yml` should work once `playbooks/caddy.yml` is re-run — it just needs postgres to be reachable first for paperless itself to come up.
+
 ## Building the installed OPNsense image
 
 Build and configure the installed disk once, upload it privately to R2, and set
@@ -63,9 +94,15 @@ later changes.
 ansible-playbook playbooks/proxmox.yml
 ansible-playbook playbooks/osrs-clan-bot.yml
 ansible-playbook playbooks/postgres.yml
+ansible-playbook playbooks/paperless.yml
 ansible-playbook playbooks/monitoring.yml
 ansible-playbook playbooks/caddy.yml
 cd terraform/apollo && terraform apply
+```
+
+Terraform — provision LXCs on Titan:
+```bash
+cd terraform/titan && terraform apply
 ```
 
 ## OPNsense web UI

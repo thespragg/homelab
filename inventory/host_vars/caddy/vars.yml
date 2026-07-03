@@ -10,3 +10,5 @@ caddy_proxies:
     backend: "https://10.0.40.5:11443"
     tls_insecure_skip_verify: true
     preserve_host: true
+  - name: paperless
+    backend: "10.0.40.30:8000"

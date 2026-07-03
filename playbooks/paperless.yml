@@ -1,0 +1,7 @@
+- name: Deploy Paperless-ngx
+  hosts: paperless
+  become: true
+  roles:
+    - common
+    - paperless
+    - restic

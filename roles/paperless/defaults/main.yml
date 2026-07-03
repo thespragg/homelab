@@ -1,0 +1,17 @@
+paperless_dir: /opt/paperless
+paperless_version: latest
+paperless_bind_address: 0.0.0.0
+paperless_port: 8000
+paperless_allowed_hosts:
+  - 10.0.40.0/24
+
+paperless_data_location: /data/paperless/data
+paperless_media_location: /data/paperless/media
+paperless_export_location: /data/paperless/export
+paperless_consume_location: /data/paperless/consume
+
+paperless_timezone: Europe/London
+paperless_ocr_language: eng
+
+paperless_db_name: paperless
+paperless_db_username: paperless_user

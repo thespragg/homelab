@@ -1,0 +1,6 @@
+- name: Deploy Immich
+  hosts: titan
+  become: true
+  roles:
+    - immich
+    - restic

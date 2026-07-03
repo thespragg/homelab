@@ -1,0 +1,40 @@
+services:
+  broker:
+    image: docker.io/library/redis:7
+    container_name: paperless_broker
+    restart: always
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: redis-cli ping || exit 1
+
+  webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:{{ paperless_version }}
+    container_name: paperless_webserver
+    restart: always
+    depends_on:
+      - broker
+    ports:
+      - "{{ paperless_bind_address }}:{{ paperless_port }}:8000"
+    volumes:
+      - "{{ paperless_data_location }}:/usr/src/paperless/data"
+      - "{{ paperless_media_location }}:/usr/src/paperless/media"
+      - "{{ paperless_export_location }}:/usr/src/paperless/export"
+      - "{{ paperless_consume_location }}:/usr/src/paperless/consume"
+    environment:
+      PAPERLESS_REDIS: redis://broker:6379
+      PAPERLESS_DBHOST: "{{ postgres_host }}"
+      PAPERLESS_DBNAME: "{{ paperless_db_name }}"
+      PAPERLESS_DBUSER: "{{ paperless_db_username }}"
+      PAPERLESS_DBPASS: "{{ paperless_db_password }}"
+      PAPERLESS_SECRET_KEY: "{{ paperless_secret_key }}"
+      PAPERLESS_URL: "{{ paperless_url }}"
+      PAPERLESS_TIME_ZONE: "{{ paperless_timezone }}"
+      PAPERLESS_OCR_LANGUAGE: "{{ paperless_ocr_language }}"
+      PAPERLESS_ADMIN_USER: "{{ paperless_admin_user }}"
+      PAPERLESS_ADMIN_PASSWORD: "{{ paperless_admin_password }}"
+    healthcheck:
+      disable: false
+
+volumes:
+  redis-data:

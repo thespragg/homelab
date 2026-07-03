@@ -3,12 +3,13 @@ set -e
 
 export B2_ACCOUNT_ID="{{ restic_b2_key_id }}"
 export B2_ACCOUNT_KEY="{{ restic_b2_application_key }}"
-export RESTIC_REPOSITORY="b2:{{ restic_b2_bucket }}:postgres/{{ item.name }}"
+export RESTIC_REPOSITORY="{{ restic_repository_backend }}:{{ restic_b2_bucket }}:{{ item.repository_path | default(item.type ~ '/' ~ item.name) }}"
 export RESTIC_PASSWORD="{{ restic_password }}"
 
-DUMP_FILE="/tmp/{{ item.name }}.sql"
-
 echo "Starting backup of {{ item.name }}"
+
+{% if item.type == 'postgres' %}
+DUMP_FILE="/tmp/{{ item.name }}.sql"
 
 PGPASSWORD="{{ item.db_password }}" pg_dump \
   -h localhost \
@@ -22,6 +23,37 @@ restic backup "$DUMP_FILE" \
   --tag postgres
 
 rm -f "$DUMP_FILE"
+{% elif item.type == 'filesystem' %}
+run_post_commands() {
+{% for command in item.post_commands | default([]) %}
+  {{ command }}
+{% endfor %}
+}
+
+trap run_post_commands EXIT
+
+{% for command in item.pre_commands | default([]) %}
+{{ command }}
+{% endfor %}
+
+restic snapshots &>/dev/null || restic init
+
+restic backup \
+{% for path in item.paths %}
+  "{{ path }}" \
+{% endfor %}
+{% for exclude in item.exclude | default([]) %}
+  --exclude "{{ exclude }}" \
+{% endfor %}
+  --tag {{ item.name }} \
+  --tag filesystem
+
+run_post_commands
+trap - EXIT
+{% else %}
+echo "Unsupported restic job type: {{ item.type }}"
+exit 1
+{% endif %}
 
 restic forget \
   --tag {{ item.name }} \
@@ -31,6 +63,9 @@ restic forget \
 {% endif %}
 {% if item.retention.monthly is defined %}
   --keep-monthly {{ item.retention.monthly }} \
+{% endif %}
+{% if item.retention.yearly is defined %}
+  --keep-yearly {{ item.retention.yearly }} \
 {% endif %}
   --prune
 
