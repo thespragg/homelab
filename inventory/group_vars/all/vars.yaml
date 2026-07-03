@@ -1,7 +1,4 @@
-# NOTE: postgres currently lives on the legacy/unreachable 10.10.0.0/24
-# network (10.10.0.22). Assuming it will move to 10.0.40.10 on the primary
-# LAN - update this once that migration actually happens.
-postgres_host: 10.0.40.10
+postgres_host: 10.0.40.69
 restic_b2_bucket: spragg-homelab-backups
 
 ssh_authorized_keys:
