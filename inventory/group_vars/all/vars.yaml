@@ -1,4 +1,4 @@
-postgres_host: 10.0.40.69
+postgres_host: 10.0.40.7
 restic_b2_bucket: spragg-homelab-backups
 
 ssh_authorized_keys:

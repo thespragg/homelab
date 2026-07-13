@@ -8,22 +8,56 @@
 	}
 
 {% for proxy in caddy_proxies %}
-	@{{ proxy.name }} host {{ proxy.name }}.{{ caddy_domain }}
-	handle @{{ proxy.name }} {
-	{% if proxy.tls_insecure_skip_verify | default(false) %}
-		reverse_proxy {{ proxy.backend }} {
-	{% if proxy.preserve_host | default(false) %}
+{% if proxy.backends is defined %}
+{% for backend in proxy.backends %}
+	@{{ proxy.name }}_{{ loop.index }} {
+		host {{ proxy.name }}.{{ caddy_domain }}
+		remote_ip {{ backend.source }}
+	}
+	handle @{{ proxy.name }}_{{ loop.index }} {
+	{% if backend.host_header is defined or proxy.host_header is defined or backend.preserve_host | default(proxy.preserve_host | default(false)) or backend.tls_insecure_skip_verify | default(proxy.tls_insecure_skip_verify | default(false)) %}
+		reverse_proxy {{ backend.backend }} {
+	{% if backend.host_header is defined or proxy.host_header is defined %}
+			header_up Host {{ backend.host_header | default(proxy.host_header) }}
+	{% endif %}
+	{% if backend.preserve_host | default(proxy.preserve_host | default(false)) %}
 			header_up Host {hostport}
 	{% endif %}
+	{% if backend.tls_insecure_skip_verify | default(proxy.tls_insecure_skip_verify | default(false)) %}
 			transport http {
 				tls_insecure_skip_verify
 			}
+	{% endif %}
+		}
+	{% else %}
+		reverse_proxy {{ backend.backend }}
+	{% endif %}
+	}
+
+{% endfor %}
+{% else %}
+	@{{ proxy.name }} host {{ proxy.name }}.{{ caddy_domain }}
+	handle @{{ proxy.name }} {
+	{% if proxy.host_header is defined or proxy.preserve_host | default(false) or proxy.tls_insecure_skip_verify | default(false) %}
+		reverse_proxy {{ proxy.backend }} {
+	{% if proxy.host_header is defined %}
+			header_up Host {{ proxy.host_header }}
+	{% endif %}
+	{% if proxy.preserve_host | default(false) %}
+			header_up Host {hostport}
+	{% endif %}
+	{% if proxy.tls_insecure_skip_verify | default(false) %}
+			transport http {
+				tls_insecure_skip_verify
+			}
+	{% endif %}
 		}
 	{% else %}
 		reverse_proxy {{ proxy.backend }}
 	{% endif %}
 	}
 
+{% endif %}
 {% endfor %}
 	handle {
 		respond 404

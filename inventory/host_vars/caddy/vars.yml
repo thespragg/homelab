@@ -5,10 +5,30 @@ caddy_proxies:
     backend: "https://10.0.10.2:8006"
     tls_insecure_skip_verify: true
   - name: grafana
-    backend: "10.10.0.23:3000"
+    backend: "10.0.40.8:3000"
   - name: unifi
     backend: "https://10.0.40.5:11443"
     tls_insecure_skip_verify: true
     preserve_host: true
   - name: paperless
     backend: "10.0.40.9:8000"
+  - name: adguard
+    backend: "10.0.40.3:3000"
+  - name: router
+    host_header: "{upstream_hostport}"
+    backends:
+      - source: "10.0.10.0/24"
+        backend: "http://10.0.10.1"
+      - source: "10.0.20.0/24"
+        backend: "http://10.0.20.1"
+      - source: "10.0.30.0/24"
+        backend: "http://10.0.30.1"
+      - source: "10.0.40.0/24"
+        backend: "http://10.0.40.1"
+      - source: "10.0.50.0/24"
+        backend: "http://10.0.50.1"
+  - name: titan
+    backend: "https://10.0.40.200:8006"
+    tls_insecure_skip_verify: true
+  - name: immich
+    backend: "10.0.40.200:2283"

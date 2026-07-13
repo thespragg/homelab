@@ -54,7 +54,9 @@ opnsense_homelab_cidr: 10.0.40.0/24
 opnsense_guest_ip: 10.0.50.1
 opnsense_guest_cidr: 10.0.50.0/24
 
-opnsense_unbound_port: 5335
+opnsense_unbound_enabled: "0"
+opnsense_unbound_port: 53
+opnsense_unbound_forwarding_enabled: "0"
 
 opnsense_dhcp_interfaces: "lan,opt3,opt4,opt5"
 opnsense_dhcp_dns: 10.0.40.3  # AdGuard
@@ -163,10 +165,5 @@ opnsense_network_rules:
     source: 10.0.50.0/24
     destination: any
     protocol: any
-
-opnsense_host_overrides:
-  - host: ""
-    domain: internal.thespragg.dev
-    ip: 10.0.40.4  # Caddy
 
 opnsense_dns_entries: []

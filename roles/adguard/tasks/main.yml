@@ -27,6 +27,27 @@
   loop:
     - tcp
     - udp
+  when: adguard_dns_allowed_sources | length == 0
+
+- name: Remove broad DNS firewall access
+  ufw:
+    rule: allow
+    port: "53"
+    proto: "{{ item }}"
+    delete: true
+  loop:
+    - tcp
+    - udp
+  when: adguard_dns_allowed_sources | length > 0
+
+- name: Allow DNS through firewall from trusted sources
+  ufw:
+    rule: allow
+    port: "53"
+    proto: "{{ item.0 }}"
+    src: "{{ item.1 }}"
+  loop: "{{ ['tcp', 'udp'] | product(adguard_dns_allowed_sources) | list }}"
+  when: adguard_dns_allowed_sources | length > 0
 
 - name: Allow AdGuard admin through firewall
   ufw:

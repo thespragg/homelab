@@ -96,6 +96,18 @@
   loop: "{{ postgres_databases }}"
   no_log: true
 
+- name: Grant schema privileges on public schema
+  become_user: postgres
+  postgresql_privs:
+    database: "{{ item.name }}"
+    role: "{{ item.user }}"
+    privs: CREATE,USAGE
+    type: schema
+    objs: public
+    state: present
+  loop: "{{ postgres_databases }}"
+  no_log: true
+
 - name: Grant user privileges on all tables
   become_user: postgres
   postgresql_privs:

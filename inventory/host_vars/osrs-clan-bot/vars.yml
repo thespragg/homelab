@@ -8,4 +8,4 @@ app_github_token: "{{ vault_github_token }}"
 app_env_vars:
   Discord__Token: "{{ vault_discord_token }}"
   ConnectionStrings__Default: "Host={{ postgres_host }};Database=osrs_clan_bot;Username=osrs_clan_bot_user;Password={{ vault_osrs_clan_bot_db_password }}"
-  Otel__OtlpEndpoint: "http://10.10.0.23:3100/otlp"
+  Otel__OtlpEndpoint: "http://10.0.40.8:3100/otlp"

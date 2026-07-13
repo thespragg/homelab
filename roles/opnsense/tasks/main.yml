@@ -129,7 +129,7 @@
   check_mode: false
   register: unbound_settings
 
-- name: Set Unbound DNS port
+- name: Set Unbound DNS settings
   uri:
     url: "{{ opnsense_api_url }}/api/unbound/settings/set"
     method: POST
@@ -139,58 +139,20 @@
     body_format: json
     body:
       unbound:
-        port: "{{ opnsense_unbound_port }}"
+        general:
+          enabled: "{{ opnsense_unbound_enabled | default('1') }}"
+          port: "{{ opnsense_unbound_port }}"
+        forwarding:
+          enabled: "{{ opnsense_unbound_forwarding_enabled | default('0') }}"
     status_code: 200
   when: >-
-    (unbound_settings.json.unbound.port | default('') | string) !=
-    (opnsense_unbound_port | string)
+    (unbound_settings.json.unbound.general.enabled | default('') | string) !=
+    (opnsense_unbound_enabled | default('1') | string) or
+    (unbound_settings.json.unbound.general.port | default('') | string) !=
+    (opnsense_unbound_port | string) or
+    (unbound_settings.json.unbound.forwarding.enabled | default('') | string) !=
+    (opnsense_unbound_forwarding_enabled | default('0') | string)
   register: unbound_settings_update
-  changed_when: true
-
-- name: Get existing Unbound host overrides
-  uri:
-    url: "{{ opnsense_api_url }}/api/unbound/settings/searchHostOverride"
-    method: POST
-    url_username: "{{ opnsense_api_key }}"
-    url_password: "{{ opnsense_api_secret }}"
-    force_basic_auth: yes
-    body_format: json
-    body:
-      current: 1
-      rowCount: -1
-      searchPhrase: ""
-    status_code: 200
-  check_mode: false
-  register: unbound_hosts
-  when: opnsense_host_overrides | length > 0
-
-- name: Add Unbound host overrides
-  uri:
-    url: "{{ opnsense_api_url }}/api/unbound/settings/addHostOverride"
-    method: POST
-    url_username: "{{ opnsense_api_key }}"
-    url_password: "{{ opnsense_api_secret }}"
-    force_basic_auth: yes
-    body_format: json
-    body:
-      host:
-        enabled: "1"
-        hostname: "{{ item.host }}"
-        domain: "{{ item.domain }}"
-        rr: "A"
-        server: "{{ item.ip }}"
-        description: ""
-        mxprio: ""
-        mx: ""
-    status_code: 200
-  loop: "{{ opnsense_host_overrides }}"
-  when: >
-    opnsense_host_overrides | length > 0 and
-    (unbound_hosts.json.rows |
-     selectattr('hostname', 'equalto', item.host) |
-     selectattr('domain', 'equalto', item.domain) |
-     list | length) == 0
-  register: unbound_host_add
   changed_when: true
 
 - name: Apply Unbound configuration
@@ -203,7 +165,7 @@
     body_format: json
     body: {}
     status_code: 200
-  when: unbound_settings_update is changed or unbound_host_add is changed
+  when: unbound_settings_update is changed
   changed_when: true
 
 - name: Read Kea DHCP settings
@@ -268,7 +230,7 @@
         pools: "{{ item.range_start }} - {{ item.range_end }}"
         option_data:
           routers: "{{ item.gateway }}"
-          domain_name_servers: "{{ opnsense_dhcp_dns }}"
+          domain_name_servers: "{{ item.dns | default(opnsense_dhcp_dns) }}"
         description: "{{ item.description }}"
     status_code: 200
   loop: "{{ opnsense_dhcp_subnets }}"
@@ -299,7 +261,7 @@
         pools: "{{ item.range_start }} - {{ item.range_end }}"
         option_data:
           routers: "{{ item.gateway }}"
-          domain_name_servers: "{{ opnsense_dhcp_dns }}"
+          domain_name_servers: "{{ item.dns | default(opnsense_dhcp_dns) }}"
         description: "{{ item.description }}"
     status_code: 200
   loop: "{{ opnsense_dhcp_subnets }}"

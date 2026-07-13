@@ -31,5 +31,14 @@ filters:
     name: AdGuard DNS filter
     id: 1
 
+{% if adguard_user_rules %}
+user_rules:
+{% for rule in adguard_user_rules %}
+  - "{{ rule }}"
+{% endfor %}
+{% else %}
+user_rules: []
+{% endif %}
+
 users: []
 schema_version: 28

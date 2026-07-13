@@ -6,3 +6,5 @@ adguard_bootstrap_dns:
   - 9.9.9.9
   - 149.112.112.112
 adguard_rewrites: []
+adguard_user_rules: []
+adguard_dns_allowed_sources: []
